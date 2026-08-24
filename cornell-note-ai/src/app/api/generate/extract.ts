@@ -6,7 +6,7 @@ export async function extractTextFromImage(base64Image: string): Promise<string>
         : `data:image/jpeg;base64,${base64Image}`;
 
     const response = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4o',
         messages: [
             {
                 role: 'system',

@@ -9,9 +9,14 @@ import { Upload, Camera, FileImage, RefreshCw, Trash2, StopCircle } from 'lucide
 interface ImageUploaderProps {
   onImageSelected: (base64Data: string, file: File) => void;
   isLoading?: boolean;
+  variant?: 'dropzone' | 'pill';
 }
 
-export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelected, isLoading = false }) => {
+export const ImageUploader: React.FC<ImageUploaderProps> = ({ 
+  onImageSelected, 
+  isLoading = false,
+  variant = 'dropzone'
+}) => {
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -162,7 +167,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelected, i
       />
 
       {/* Main Drag-and-Drop Area or Preview */}
-      {!previewUrl && !isCameraActive && (
+      {!previewUrl && !isCameraActive && variant === 'dropzone' && (
         <div
           className={`${styles.dropzone} ${dragActive ? styles.dragActive : ''}`}
           onDragEnter={handleDrag}
@@ -191,6 +196,81 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelected, i
               <Camera size={16} /> Use Camera
             </Button>
           </div>
+        </div>
+      )}
+
+      {/* Pill-shaped upload and camera selector */}
+      {!previewUrl && !isCameraActive && variant === 'pill' && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: '#ffffff',
+            borderRadius: '9999px',
+            padding: '12px 32px',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+            border: '1px solid #e5e7eb',
+            gap: '28px',
+            width: 'fit-content',
+            margin: '0 auto',
+          }}
+        >
+          <button
+            onClick={onButtonClick}
+            disabled={isLoading}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: '#111827',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '10px',
+              borderRadius: '50%',
+              transition: 'background-color 0.2s, transform 0.2s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#f3f4f6';
+              e.currentTarget.style.transform = 'scale(1.1)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+            title="Upload Note Image"
+          >
+            <Upload size={24} />
+          </button>
+          <div style={{ width: '1px', height: '24px', backgroundColor: '#e5e7eb' }} />
+          <button
+            onClick={startCamera}
+            disabled={isLoading}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: '#111827',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '10px',
+              borderRadius: '50%',
+              transition: 'background-color 0.2s, transform 0.2s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#f3f4f6';
+              e.currentTarget.style.transform = 'scale(1.1)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+            title="Take Photo"
+          >
+            <Camera size={24} />
+          </button>
         </div>
       )}
 

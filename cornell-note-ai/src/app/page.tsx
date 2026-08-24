@@ -1,268 +1,193 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useRouter } from 'next/navigation';
-import styles from './page.module.css';
-import ImageUploader from '@/components/ImageUploader';
-import { Card, CardContent } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { supabase } from '@/lib/supabase';
-import { Note } from '@/types';
-import { Calendar, Eye, Trash2, ArrowRight, BookOpen, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Brain, Gauge, Headphones, Repeat, BookOpen, ArrowRight } from 'lucide-react';
+import '../app/globals.css';
 
 export default function Home() {
   const router = useRouter();
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [loadingStep, setLoadingStep] = useState(0);
-  const [isDbAvailable, setIsDbAvailable] = useState(false);
 
-  // Check database connectivity and fetch notes
-  useEffect(() => {
-    const fetchNotes = async () => {
-      const hasSupabase = process.env.NEXT_PUBLIC_SUPABASE_URL && 
-                          process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://your-supabase-project.supabase.co';
-      
-      let fetchedNotes: Note[] = [];
-
-      if (hasSupabase) {
-        try {
-          const { data, error } = await supabase
-            .from('notes')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-          if (!error && data) {
-            fetchedNotes = data as Note[];
-            setIsDbAvailable(true);
-          } else {
-            console.warn('Supabase database error, falling back to local storage.');
-          }
-        } catch (err) {
-          console.warn('Failed to connect to Supabase, falling back to local storage:', err);
-        }
-      }
-
-      // Fallback/load local storage notes
-      try {
-        const local = localStorage.getItem('cornell_notes');
-        const localNotes: Note[] = local ? JSON.parse(local) : [];
-        
-        // Merge notes (avoiding duplicates by id)
-        const combined = [...fetchedNotes];
-        localNotes.forEach(localNote => {
-          if (!combined.some(n => n.id === localNote.id)) {
-            combined.push(localNote);
-          }
-        });
-
-        // Sort combined notes by created_at descending
-        combined.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-        setNotes(combined);
-      } catch (err) {
-        console.error('Error loading local notes:', err);
-      }
-    };
-
-    fetchNotes();
-  }, []);
-
-  // Animate loading steps
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (isLoading) {
-      setLoadingStep(0);
-      const steps = [1000, 2500, 4500]; // timing for state changes
-      
-      const runStep = (index: number) => {
-        if (index < steps.length) {
-          timer = setTimeout(() => {
-            setLoadingStep(index + 1);
-            runStep(index + 1);
-          }, steps[index]);
-        }
-      };
-      
-      runStep(0);
-    } else {
-      setLoadingStep(0);
-    }
-    return () => clearTimeout(timer);
-  }, [isLoading]);
-
-  const handleImageSelected = async (base64Data: string, file: File) => {
-    setIsLoading(true);
-
-    try {
-      const response = await fetch('/api/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ image: base64Data }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Note generation failed.');
-      }
-
-      const generatedNote: Note = await response.json();
-
-      // If it is a local fallback ID, save it to local storage as well
-      if (generatedNote.id.startsWith('local-')) {
-        try {
-          const local = localStorage.getItem('cornell_notes');
-          const localNotes: Note[] = local ? JSON.parse(local) : [];
-          localNotes.unshift(generatedNote);
-          localStorage.setItem('cornell_notes', JSON.stringify(localNotes));
-        } catch (err) {
-          console.error('Failed to save note to local storage:', err);
-        }
-      }
-
-      // Add to state and redirect
-      setNotes((prev) => [generatedNote, ...prev]);
-      router.push(`/notes/${generatedNote.id}`);
-
-    } catch (err) {
-      console.error('Error generating notes:', err);
-      alert('Failed to generate note. Check your API keys and connection.');
-      setIsLoading(false);
-    }
+  const handleLofiClick = () => {
+    // Fire the custom event to open the Lofi Cafe drawer
+    const event = new CustomEvent('toggle-lofi-player');
+    window.dispatchEvent(event);
   };
 
-  const handleDeleteNote = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-
-    if (!confirm('Are you sure you want to delete this note?')) return;
-
-    try {
-      // 1. Delete from local storage if exists
-      const local = localStorage.getItem('cornell_notes');
-      if (local) {
-        const localNotes: Note[] = JSON.parse(local);
-        const updated = localNotes.filter((n) => n.id !== id);
-        localStorage.setItem('cornell_notes', JSON.stringify(updated));
-      }
-
-      // 2. Delete from database if database is configured and it's a DB note
-      if (isDbAvailable && !id.startsWith('local-')) {
-        await supabase.from('notes').delete().eq('id', id);
-      }
-
-      setNotes((prev) => prev.filter((n) => n.id !== id));
-    } catch (err) {
-      console.error('Failed to delete note:', err);
-    }
-  };
+  const features = [
+    {
+      text: 'Feynman\'s Technique',
+      icon: <Brain size={18} color="#2563eb" />,
+      onClick: () =>  window.open("https://www.goodnotes.com/blog/feynman-technique"),
+    },
+    {
+      text: 'Built for performance',
+      icon: <Gauge size={18} color="#2563eb" />,
+      onClick: () => window.open("https://pmc.ncbi.nlm.nih.gov/articles/PMC8108503/"),
+    },
+    {
+      text: 'Lofi Music',
+      icon: <Headphones size={18} color="#2563eb" />,
+      onClick: () => window.open("https://www.calm.com/blog/benefits-of-lofi-music"),
+      badge: 'Live Radio',
+    },
+    {
+      text: 'Spaced Repetition',
+      icon: <Repeat size={18} color="#2563eb" />,
+      onClick: () =>  window.open("https://www.khanacademy.org/science/learn-to-learn/x141050afa14cfed3:learn-to-learn/x141050afa14cfed3:spaced-repetition/a/l2l-spaced-repetition"),
+    },
+    {
+      text: 'Cornell Note method',
+      icon: <BookOpen size={18} color="#2563eb" />,
+      onClick: () => window.open("https://lsc.cornell.edu/how-to-study/taking-notes/cornell-note-taking-system/"),
+    },
+  ];
 
   return (
-    <div className="container">
-      <main className={styles.main}>
-        {/* Hero Section */}
-        <section className={styles.hero}>
-          <h1 className={styles.heroTitle}>Cornell Note AI</h1>
-          <p className={styles.heroSubtitle}>
-            Our AI extracts core concepts and generates structured + printable Cornell notes.
-          </p>
-        </section>
+    <div className="light-theme" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+      <main className="container" style={{ padding: '60px 24px', maxWidth: '1200px', margin: '0 auto', textAlign: 'center' }}>
 
-        {/* Uploader Section */}
-        <section className={styles.uploadSection}>
-          {isLoading ? (
-            <Card>
-              <CardContent className={styles.loadingCard}>
-                <div className={styles.spinner} />
-                <div>
-                  <h3 style={{ fontWeight: 600, fontSize: '1.125rem', marginBottom: '4px' }}>Generating Your Cornell Notes</h3>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Processing visual contents...</p>
-                </div>
-                
-                {/* Visual indicator of pipeline steps */}
-                <div className={styles.loadingSteps}>
-                  <div className={`${styles.loadingStep} ${loadingStep >= 0 ? styles.loadingStepActive : ''}`}>
-                    {loadingStep > 0 ? <CheckCircle2 size={14} color="var(--secondary)" /> : <Sparkles size={14} />}
-                    <span>Extracting text and analyzing structure...</span>
-                  </div>
-                  <div className={`${styles.loadingStep} ${loadingStep >= 1 ? styles.loadingStepActive : ''}`}>
-                    {loadingStep > 1 ? <CheckCircle2 size={14} color="var(--secondary)" /> : <BookOpen size={14} />}
-                    <span>Formulating cues and questions...</span>
-                  </div>
-                  <div className={`${styles.loadingStep} ${loadingStep >= 2 ? styles.loadingStepActive : ''}`}>
-                    {loadingStep > 2 ? <CheckCircle2 size={14} color="var(--secondary)" /> : <Sparkles size={14} />}
-                    <span>Structuring final Cornell layout...</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardContent style={{ padding: '24px' }}>
-                <ImageUploader onImageSelected={handleImageSelected} isLoading={isLoading} />
-              </CardContent>
-            </Card>
-          )}
-        </section>
-
-        {/* Recent Notes Section */}
-        <section className={styles.notesSection}>
-          <div className={styles.sectionHeader}>
-            <h2 className={styles.sectionTitle}>Your Study Notes</h2>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              {isDbAvailable ? 'Connected to Supabase' : 'Offline Mode (Local Storage)'}
-            </span>
+        {/* Center Logo Badge */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
+          <div>
+            <img
+              src="/PitStopNotes.png"
+              alt="Pitstop Notes Badge"
+              style={{
+                width: '160px',
+                height: '160px',
+                objectFit: 'contain',
+              }}
+            />
           </div>
+        </div>
 
-          {notes.length === 0 ? (
-            <div className={styles.emptyState}>
-              <BookOpen size={40} style={{ margin: '0 auto 16px auto', opacity: 0.5 }} />
-              <h3 style={{ fontWeight: 600, marginBottom: '4px' }}>No notes generated yet</h3>
-              <p style={{ fontSize: '0.875rem', opacity: 0.8 }}>
-                Snap a photo or drag in an image above to start learning!
-              </p>
+        {/* Title */}
+        <h1
+          style={{
+            fontSize: '3rem',
+            fontWeight: 800,
+            color: 'white',
+            marginBottom: '40px',
+            fontFamily: 'var(--font-outfit)',
+            letterSpacing: '-0.03em',
+          }}
+        >
+          Supercharged Study Platform
+        </h1>
+
+        {/* CTA Button */}
+        <div style={{ marginBottom: '60px' }}>
+          <button
+            onClick={() => router.push('/dashboard')}
+            style={{
+              backgroundColor: '#1d4ed8',
+              color: '#ffffff',
+              border: 'none',
+              padding: '16px 36px',
+              fontSize: '1.15rem',
+              fontWeight: 700,
+              borderRadius: '9999px',
+              cursor: 'pointer',
+              boxShadow: '0 4px 14px rgba(29, 78, 216, 0.4)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#1e40af';
+              e.currentTarget.style.transform = 'scale(1.05) translateY(-2px)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = '#1d4ed8';
+              e.currentTarget.style.transform = 'scale(1) translateY(0)';
+            }}
+          >
+            Enter the Pitstop <ArrowRight size={18} />
+          </button>
+        </div>
+
+        {/* Features Layout Section */}
+        <div
+          style={{
+            maxWidth: '900px',
+            margin: '0 auto',
+            display: 'flex',
+            flexWrap: 'wrap',
+            justifyContent: 'center',
+            gap: '20px',
+          }}
+        >
+          {features.map((feature, idx) => (
+            <div
+              key={idx}
+              onClick={feature.onClick}
+              style={{
+                backgroundColor: '#ffffff',
+                border: '1px solid rgba(0, 0, 0, 0.06)',
+                borderRadius: '9999px',
+                padding: '14px 28px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                cursor: 'pointer',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.03)',
+                transition: 'all 0.25s ease',
+                position: 'relative',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-3px)';
+                e.currentTarget.style.boxShadow = '0 6px 18px rgba(37, 99, 235, 0.1)';
+                e.currentTarget.style.borderColor = 'rgba(37, 99, 235, 0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.03)';
+                e.currentTarget.style.borderColor = 'rgba(0, 0, 0, 0.06)';
+              }}
+            >
+              {feature.icon}
+              <span
+                style={{
+                  fontWeight: 600,
+                  fontSize: '1rem',
+                  color: '#111827',
+                  fontFamily: 'var(--font-inter)',
+                }}
+              >
+                {feature.text}
+              </span>
+              {feature.badge && (
+                <span
+                  style={{
+                    backgroundColor: '#ef4444',
+                    color: '#ffffff',
+                    fontSize: '0.65rem',
+                    fontWeight: 700,
+                    padding: '2px 6px',
+                    borderRadius: '8px',
+                    marginLeft: '4px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                  }}
+                >
+                  {feature.badge}
+                </span>
+              )}
             </div>
-          ) : (
-            <div className={styles.notesGrid}>
-              {notes.map((note) => (
-                <Card key={note.id} interactive onClick={() => router.push(`/notes/${note.id}`)}>
-                  <CardContent className={styles.noteCardContent}>
-                    <h3 className={styles.noteCardTitle}>{note.title}</h3>
-                    <div className={styles.noteCardDate}>
-                      <Calendar size={12} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'text-bottom' }} />
-                      {new Date(note.created_at).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                      })}
-                    </div>
-                    <p className={styles.noteCardExcerpt}>{note.summary}</p>
-                    
-                    <div className={styles.noteCardFooter}>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="no-print"
-                        onClick={(e) => handleDeleteNote(note.id, e)}
-                        style={{ color: 'var(--text-muted)' }}
-                      >
-                        <Trash2 size={14} />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => router.push(`/notes/${note.id}`)}
-                      >
-                        Study <ArrowRight size={14} />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </section>
+          ))}
+        </div>
       </main>
+
+      {/* Floating animation */}
+      <style jsx>{`
+        @keyframes float {
+          0% { transform: translateY(0px); }
+          50% { transform: translateY(-10px); }
+          100% { transform: translateY(0px); }
+        }
+      `}</style>
     </div>
   );
 }
