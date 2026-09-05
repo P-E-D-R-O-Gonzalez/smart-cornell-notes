@@ -253,6 +253,14 @@
 
 /* Print Overrides */
 @media print {
+  /* Browsers commonly omit CSS backgrounds in print/PDF output. Keep the
+     inline background colors created by the highlighter visible. */
+  .paper,
+  .paper * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
   .paper {
     border: 2px solid #000000 !important;
     box-shadow: none !important;
@@ -279,5 +287,10 @@
   }
   .deleteButton, .addButton {
     display: none !important;
+  }
+
+  .paper [data-rich-editor="true"] span[style*="background-color"] {
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
   }
 }

@@ -1,7 +1,7 @@
 import { openai } from '@/lib/openai';
 import { z } from 'zod';
 import { zodResponseFormat } from 'openai/helpers/zod';
-import { supabase } from '@/lib/supabase';
+import { createServerClient } from '@/lib/supabase/server';
 
 const SummarySchema = z.object({
     summary: z.string().describe("A comprehensive 3-5 sentence academic summary.")
@@ -21,15 +21,19 @@ export async function generateSummary(rawText: string): Promise<string> {
     return summaryData.summary || '';
 }
 
+function stripHtml(html: string): string {
+    return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ');
+}
+
 export async function POST(req: Request) {
     try {
+        const supabase = createServerClient();
+
         const { noteId, rawNotes } = await req.json();
         
         let rawNotesText = rawNotes;
-        const hasSupabase = process.env.NEXT_PUBLIC_SUPABASE_URL && 
-                            process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://your-supabase-project.supabase.co';
 
-        if (!rawNotesText && noteId && hasSupabase) {
+        if (!rawNotesText && noteId) {
             const { data, error } = await supabase
                 .from('notes')
                 .select('*')
@@ -45,9 +49,10 @@ export async function POST(req: Request) {
             return Response.json({ error: 'Raw notes content is required' }, { status: 400 });
         }
 
-        const summary = await generateSummary(rawNotesText);
+        const cleanNotesText = stripHtml(rawNotesText);
+        const summary = await generateSummary(cleanNotesText);
 
-        if (noteId && hasSupabase) {
+        if (noteId) {
             await supabase
                 .from('notes')
                 .update({ summary })

@@ -151,7 +151,7 @@ a {
   }
 }
 
-/* Light Theme Override for Homepage and Dashboard 
+/* Light Theme Override for Homepage and Dashboard */
 .light-theme {
   --bg-color: #d9d9d9;
   --bg-gradient: linear-gradient(180deg, #d9d9d9 0%, #d1d5db 100%);
@@ -168,4 +168,4 @@ a {
   --glass-blur: blur(12px);
   color: var(--text-primary);
   min-height: 100vh;
-}*/
+}

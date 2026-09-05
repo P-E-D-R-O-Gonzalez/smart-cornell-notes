@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { createServerClient } from '@/lib/supabase/server';
 import { extractTextFromImage } from './extract';
 import { generateQuestions } from './questions';
 import { generateSummary } from './summary';
@@ -52,8 +52,10 @@ function deriveTitle(notes: string[]): string {
 
 export async function POST(request: Request) {
   try {
+    const supabase = createServerClient();
+
     const body = await request.json();
-    const { image } = body; // Base64 data url
+    const { image, includeQuestions, includeSummary } = body; // Base64 data url
 
     if (!image) {
       return NextResponse.json({ error: 'Image data is required.' }, { status: 400 });
@@ -62,11 +64,9 @@ export async function POST(request: Request) {
     let imageUrl = '';
 
     const hasOpenAI = process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'your_openai_api_key_here';
-    const hasSupabase = process.env.NEXT_PUBLIC_SUPABASE_URL &&
-      process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://your-supabase-project.supabase.co';
 
-    // 1. Upload image to Supabase if configured
-    if (hasSupabase && image.startsWith('data:image')) {
+    // 1. Upload image to Supabase Storage
+    if (image.startsWith('data:image')) {
       try {
         const matches = image.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
         if (matches && matches.length === 3) {
@@ -74,13 +74,13 @@ export async function POST(request: Request) {
           const base64Data = matches[2];
           const buffer = Buffer.from(base64Data, 'base64');
 
-          const fileName = `note-${Date.now()}.jpg`;
+          const fileName = crypto.randomUUID();
 
           const { data, error } = await supabase.storage
             .from('note-images')
             .upload(fileName, buffer, {
               contentType,
-              upsert: true
+              upsert: false,
             });
 
           if (!error && data) {
@@ -114,10 +114,10 @@ export async function POST(request: Request) {
 
     const notes = splitNotes(rawText);
 
-    // 4. Run summary and questions generation in parallel
+    // 4. Generate optional study aids in parallel. Text extraction always runs.
     const [summary, cues] = await Promise.all([
-      generateSummary(rawText),
-      generateQuestions(rawText),
+      includeSummary === true ? generateSummary(rawText) : Promise.resolve(''),
+      includeQuestions === true ? generateQuestions(rawText) : Promise.resolve<string[]>([]),
     ]);
 
     const parsedNote = {
@@ -127,40 +127,29 @@ export async function POST(request: Request) {
       summary,
     };
 
-    // 5. Save to Supabase or return local record
-    if (hasSupabase) {
-      try {
-        const { data, error } = await supabase
-          .from('notes')
-          .insert({
-            title: parsedNote.title,
-            cues: parsedNote.cues,
-            notes: parsedNote.notes,
-            summary: parsedNote.summary,
-            image_url: imageUrl || null
-          })
-          .select()
-          .single();
+    try {
+      const { data, error } = await supabase
+        .from('notes')
+        .insert({
+          title: parsedNote.title,
+          cues: parsedNote.cues,
+          notes: parsedNote.notes,
+          summary: parsedNote.summary,
+          image_url: imageUrl || null,
+        })
+        .select()
+        .single();
 
-        if (error) throw error;
-        return NextResponse.json(data);
-      } catch (dbErr) {
-        console.warn('Database save failed, returning local temporary record:', dbErr);
-        const tempId = `local-${Date.now()}`;
-        return NextResponse.json({
-          id: tempId,
-          ...parsedNote,
-          image_url: imageUrl || image,
-          created_at: new Date().toISOString()
-        });
-      }
-    } else {
+      if (error) throw error;
+      return NextResponse.json(data);
+    } catch (dbErr) {
+      console.warn('Database save failed, returning local temporary record:', dbErr);
       const tempId = `local-${Date.now()}`;
       return NextResponse.json({
         id: tempId,
         ...parsedNote,
         image_url: imageUrl || image,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
       });
     }
 

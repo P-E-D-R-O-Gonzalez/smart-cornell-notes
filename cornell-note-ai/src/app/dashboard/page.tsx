@@ -5,42 +5,40 @@ import { useRouter } from 'next/navigation';
 import ImageUploader from '@/components/ImageUploader';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/client';
 import { Note } from '@/types';
-import { Calendar, Eye, Trash2, ArrowRight, BookOpen, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Calendar, Trash2, ArrowRight, BookOpen, Sparkles, CheckCircle2 } from 'lucide-react';
 import styles from '../page.module.css';
 
 export default function Dashboard() {
   const router = useRouter();
+  const supabase = createClient();
   const [notes, setNotes] = useState<Note[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
   const [isDbAvailable, setIsDbAvailable] = useState(false);
+  const [includeQuestions, setIncludeQuestions] = useState(false);
+  const [includeSummary, setIncludeSummary] = useState(false);
 
   // Check database connectivity and fetch notes
   useEffect(() => {
     const fetchNotes = async () => {
-      const hasSupabase = process.env.NEXT_PUBLIC_SUPABASE_URL &&
-        process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://your-supabase-project.supabase.co';
-
       let fetchedNotes: Note[] = [];
 
-      if (hasSupabase) {
-        try {
-          const { data, error } = await supabase
-            .from('notes')
-            .select('*')
-            .order('created_at', { ascending: false });
+      try {
+        const { data, error } = await supabase
+          .from('notes')
+          .select('*')
+          .order('created_at', { ascending: false });
 
-          if (!error && data) {
-            fetchedNotes = data as Note[];
-            setIsDbAvailable(true);
-          } else {
-            console.warn('Supabase database error, falling back to local storage.');
-          }
-        } catch (err) {
-          console.warn('Failed to connect to Supabase, falling back to local storage:', err);
+        if (!error && data) {
+          fetchedNotes = data as Note[];
+          setIsDbAvailable(true);
+        } else {
+          console.warn('Supabase database error, falling back to local storage.');
         }
+      } catch (err) {
+        console.warn('Failed to connect to Supabase, falling back to local storage:', err);
       }
 
       // Fallback/load local storage notes
@@ -65,7 +63,7 @@ export default function Dashboard() {
     };
 
     fetchNotes();
-  }, []);
+  }, [supabase]);
 
   // Animate loading steps
   useEffect(() => {
@@ -90,7 +88,7 @@ export default function Dashboard() {
     return () => clearTimeout(timer);
   }, [isLoading]);
 
-  const handleImageSelected = async (base64Data: string, file: File) => {
+  const handleImageSelected = async (base64Data: string, _file: File) => {
     setIsLoading(true);
 
     try {
@@ -99,7 +97,11 @@ export default function Dashboard() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ image: base64Data }),
+        body: JSON.stringify({
+          image: base64Data,
+          includeQuestions,
+          includeSummary,
+        }),
       });
 
       if (!response.ok) {
@@ -161,7 +163,7 @@ export default function Dashboard() {
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px', marginTop: '10px' }}>
           <div>
             <img
-              src="/pitStopNotes.png"
+              src="../pitstopNotes.png"
               alt="Pitstop Notes Logo"
               style={{
                 width: '145px',
@@ -218,6 +220,90 @@ export default function Dashboard() {
             </Card>
           ) : (
             <ImageUploader onImageSelected={handleImageSelected} isLoading={isLoading} variant="pill" />
+          )}
+
+          {!isLoading && (
+            <div
+              aria-label="Generation options"
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                flexWrap: 'wrap',
+                gap: '12px',
+                marginTop: '18px',
+              }}
+            >
+              <button
+                type="button"
+                aria-pressed={includeQuestions}
+                onClick={() => setIncludeQuestions((enabled) => !enabled)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  border: `1px solid ${includeQuestions ? '#2563eb' : 'rgba(0, 0, 0, 0.14)'}`,
+                  borderRadius: '9999px',
+                  padding: '9px 14px',
+                  backgroundColor: includeQuestions ? '#dbeafe' : '#ffffff',
+                  color: '#111827',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  fontSize: '0.875rem',
+                }}
+              >
+                <span
+                  aria-hidden="true"
+                  style={{
+                    width: '30px',
+                    height: '18px',
+                    borderRadius: '9999px',
+                    backgroundColor: includeQuestions ? '#2563eb' : '#9ca3af',
+                    padding: '2px',
+                    display: 'inline-flex',
+                    justifyContent: includeQuestions ? 'flex-end' : 'flex-start',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <span style={{ width: '14px', height: '14px', borderRadius: '50%', backgroundColor: '#ffffff' }} />
+                </span>
+                Generate questions
+              </button>
+              <button
+                type="button"
+                aria-pressed={includeSummary}
+                onClick={() => setIncludeSummary((enabled) => !enabled)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  border: `1px solid ${includeSummary ? '#2563eb' : 'rgba(0, 0, 0, 0.14)'}`,
+                  borderRadius: '9999px',
+                  padding: '9px 14px',
+                  backgroundColor: includeSummary ? '#dbeafe' : '#ffffff',
+                  color: '#111827',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  fontSize: '0.875rem',
+                }}
+              >
+                <span
+                  aria-hidden="true"
+                  style={{
+                    width: '30px',
+                    height: '18px',
+                    borderRadius: '9999px',
+                    backgroundColor: includeSummary ? '#2563eb' : '#9ca3af',
+                    padding: '2px',
+                    display: 'inline-flex',
+                    justifyContent: includeSummary ? 'flex-end' : 'flex-start',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <span style={{ width: '14px', height: '14px', borderRadius: '50%', backgroundColor: '#ffffff' }} />
+                </span>
+                Generate summary
+              </button>
+            </div>
           )}
         </div>
 

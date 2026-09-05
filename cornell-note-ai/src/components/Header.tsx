@@ -2,27 +2,8 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { useAuth } from '@/components/AuthProvider';
 
 export default function Header() {
-  const pathname = usePathname();
-  const router = useRouter();
-  const { user, signOut } = useAuth();
-
-  const handleLogout = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    await signOut();
-    router.push('/');
-    router.refresh();
-  };
-
-  const toggleLofi = (e: React.MouseEvent) => {
-    e.preventDefault();
-    // Dispatch custom event to toggle Lofi drawer
-    const event = new CustomEvent('toggle-lofi-player');
-    window.dispatchEvent(event);
-  };
 
   return (
     <header
@@ -88,7 +69,7 @@ export default function Header() {
           }}
         >
           <Link
-            href={user ? '/dashboard' : '/'}
+            href="/dashboard"
             style={{
               fontSize: '1.2rem',
               color: '#111827',
@@ -102,54 +83,6 @@ export default function Header() {
             Dashboard
           </Link>
 
-          {user ? (
-            <a
-              href="#"
-              onClick={handleLogout}
-              style={{
-                fontSize: '1.2rem',
-                color: '#111827',
-                fontWeight: 600,
-                fontFamily: 'var(--font-inter)',
-                transition: 'opacity 0.2s',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.7')}
-              onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
-            >
-              Logout
-            </a>
-          ) : (
-            <>
-              <Link
-                href="/login"
-                style={{
-                  fontSize: '1.2rem',
-                  color: '#111827',
-                  fontWeight: 600,
-                  fontFamily: 'var(--font-inter)',
-                  transition: 'opacity 0.2s',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.7')}
-                onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
-              >
-                Login
-              </Link>
-              <Link
-                href="/signup"
-                style={{
-                  fontSize: '1.2rem',
-                  color: '#111827',
-                  fontWeight: 600,
-                  fontFamily: 'var(--font-inter)',
-                  transition: 'opacity 0.2s',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.7')}
-                onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
-              >
-                Signup
-              </Link>
-            </>
-          )}
         </div>
       </div>
     </header>

@@ -1,7 +1,7 @@
 import { openai } from '@/lib/openai';
 import { zodResponseFormat } from 'openai/helpers/zod';
 import { z } from 'zod';
-import { supabase } from '@/lib/supabase';
+import { createServerClient } from '@/lib/supabase/server';
 
 const QuestionsSchema = z.object({
     questions: z.array(z.string()).describe("5 study questions evaluating the text.")
@@ -30,13 +30,13 @@ export async function generateQuestions(rawText: string): Promise<string[]> {
 
 export async function POST(req: Request) {
     try {
+        const supabase = createServerClient();
+
         const { noteId, rawNotes } = await req.json();
         
         let rawNotesText = rawNotes;
-        const hasSupabase = process.env.NEXT_PUBLIC_SUPABASE_URL && 
-                            process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://your-supabase-project.supabase.co';
 
-        if (!rawNotesText && noteId && hasSupabase) {
+        if (!rawNotesText && noteId) {
             const { data, error } = await supabase
                 .from('notes')
                 .select('*')
@@ -54,7 +54,7 @@ export async function POST(req: Request) {
 
         const questions = await generateQuestions(rawNotesText);
 
-        if (noteId && hasSupabase) {
+        if (noteId) {
             await supabase
                 .from('notes')
                 .update({ cues: questions })

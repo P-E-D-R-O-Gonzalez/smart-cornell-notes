@@ -12,8 +12,8 @@ interface ImageUploaderProps {
   variant?: 'dropzone' | 'pill';
 }
 
-export const ImageUploader: React.FC<ImageUploaderProps> = ({ 
-  onImageSelected, 
+export const ImageUploader: React.FC<ImageUploaderProps> = ({
+  onImageSelected,
   isLoading = false,
   variant = 'dropzone'
 }) => {
@@ -26,6 +26,14 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    setIsCameraActive(false);
+  };
 
   // Clean up camera stream on unmount
   useEffect(() => {
@@ -118,13 +126,6 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
     }
   };
 
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-    setIsCameraActive(false);
-  };
 
   const capturePhoto = () => {
     if (videoRef.current) {

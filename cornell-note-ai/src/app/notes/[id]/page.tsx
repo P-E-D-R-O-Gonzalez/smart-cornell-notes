@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { CornellLayout } from '@/components/CornellLayout';
 import { Note, CornellData } from '@/types';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/client';
 import { ChevronLeft, ArrowLeft, Loader2, FileWarning } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
@@ -14,6 +14,7 @@ export default function NoteViewerPage() {
   const params = useParams();
   const id = params.id as string;
 
+  const supabase = createClient();
   const [note, setNote] = useState<Note | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -26,13 +27,10 @@ export default function NoteViewerPage() {
       setIsLoading(true);
       setErrorMsg(null);
 
-      const hasSupabase = process.env.NEXT_PUBLIC_SUPABASE_URL && 
-                          process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://your-supabase-project.supabase.co';
-
       let dbNote: Note | null = null;
 
       // 1. Fetch from Supabase database if applicable
-      if (hasSupabase && !id.startsWith('local-')) {
+      if (!id.startsWith('local-')) {
         try {
           const { data, error } = await supabase
             .from('notes')
@@ -74,14 +72,11 @@ export default function NoteViewerPage() {
     };
 
     fetchNote();
-  }, [id]);
+  }, [id, supabase]);
 
   const handleSaveNote = async (updatedData: CornellData) => {
     if (!note || !id) return;
     setIsSaving(true);
-
-    const hasSupabase = process.env.NEXT_PUBLIC_SUPABASE_URL && 
-                        process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://your-supabase-project.supabase.co';
 
     // 1. Save to local storage
     try {
@@ -100,7 +95,7 @@ export default function NoteViewerPage() {
     }
 
     // 2. Save to database if applicable
-    if (hasSupabase && !id.startsWith('local-')) {
+    if (!id.startsWith('local-')) {
       try {
         const { error } = await supabase
           .from('notes')
@@ -141,7 +136,7 @@ export default function NoteViewerPage() {
           <h2 style={{ fontSize: '1.5rem', fontWeight: 600 }}>Note Not Found</h2>
           <p style={{ color: 'var(--text-secondary)', marginTop: '8px' }}>{errorMsg || 'This page does not exist.'}</p>
         </div>
-        <Link href="/" passHref>
+        <Link href="/dashboard" passHref>
           <Button variant="primary">
             <ArrowLeft size={16} /> Back to Dashboard
           </Button>
@@ -154,7 +149,7 @@ export default function NoteViewerPage() {
     <div className="container" style={{ padding: '24px 0 60px 0' }}>
       {/* Back button */}
       <div className="no-print" style={{ marginBottom: '20px' }}>
-        <Link href="/" passHref>
+        <Link href="/dashboard" passHref>
           <Button variant="ghost" size="sm" style={{ paddingLeft: '8px' }}>
             <ChevronLeft size={16} /> Back to Dashboard
           </Button>

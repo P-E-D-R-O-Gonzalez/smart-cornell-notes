@@ -15,8 +15,7 @@ export default function LofiPlayer() {
 
     window.addEventListener('toggle-lofi-player', handleToggleLofi);
     return () => {
-      -
-        window.removeEventListener('toggle-lofi-player', handleToggleLofi);
+      window.removeEventListener('toggle-lofi-player', handleToggleLofi);
     };
   }, []);
 

@@ -1,0 +1,17 @@
+.editor {
+  position: relative;
+  width: 100%;
+  display: block;
+  white-space: pre-wrap;
+}
+
+.editor:empty::before {
+  content: attr(placeholder);
+  color: var(--text-muted);
+  cursor: text;
+  pointer-events: none;
+  display: block;
+  position: absolute;
+  left: 0;
+  top: 4px;
+}

@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import styles from './CornellLayout.module.css';
 import { Button } from '@/components/ui/Button';
 import { CornellData } from '@/types';
 import { Save, Printer, Plus, Trash2, Calendar, FileText, ImageIcon } from 'lucide-react';
+import { RichTextEditor } from './ui/RichTextEditor';
+import { FloatingSelectionToolbar } from './FloatingSelectionToolbar';
 
 interface CornellLayoutProps {
   initialData: CornellData;
@@ -24,33 +26,6 @@ function normalizeList(value: string[] | string | undefined | null): string[] {
   }
   return [];
 }
-
-const AutoExpandingTextarea: React.FC<{
-  value: string;
-  onChange: (val: string) => void;
-  className?: string;
-  placeholder?: string;
-}> = ({ value, onChange, className, placeholder }) => {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
-    }
-  }, [value]);
-
-  return (
-    <textarea
-      ref={textareaRef}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className={className}
-      placeholder={placeholder}
-      rows={1}
-    />
-  );
-};
 
 export const CornellLayout: React.FC<CornellLayoutProps> = ({
   initialData,
@@ -115,8 +90,8 @@ export const CornellLayout: React.FC<CornellLayoutProps> = ({
     setIsDirty(true);
   };
 
-  const handleSummaryChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setSummary(e.target.value);
+  const handleSummaryChange = (val: string) => {
+    setSummary(val);
     setIsDirty(true);
   };
 
@@ -213,7 +188,7 @@ export const CornellLayout: React.FC<CornellLayoutProps> = ({
             {cues.map((cue, idx) => (
               <li key={`cue-${idx}`} className={styles.itemRow}>
                 <span className={styles.itemBullet}>?</span>
-                <AutoExpandingTextarea
+                <RichTextEditor
                   value={cue}
                   onChange={(val) => handleCueChange(idx, val)}
                   className={styles.itemText}
@@ -244,7 +219,7 @@ export const CornellLayout: React.FC<CornellLayoutProps> = ({
             {notes.map((note, idx) => (
               <li key={`note-${idx}`} className={styles.itemRow}>
                 <span className={styles.itemBullet}>•</span>
-                <AutoExpandingTextarea
+                <RichTextEditor
                   value={note}
                   onChange={(val) => handleNoteChange(idx, val)}
                   className={styles.itemText}
@@ -269,13 +244,14 @@ export const CornellLayout: React.FC<CornellLayoutProps> = ({
 
       {/* Bottom Row: Summary */}
       <div className={styles.summarySection}>
-        <textarea
+        <RichTextEditor
           className={styles.summaryTextarea}
           value={summary}
           onChange={handleSummaryChange}
           placeholder="Summarize the main points of this note page in a few complete sentences..."
         />
       </div>
+      <FloatingSelectionToolbar />
     </div>
   );
 };

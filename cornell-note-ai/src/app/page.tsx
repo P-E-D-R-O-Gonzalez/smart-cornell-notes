@@ -3,7 +3,6 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { Brain, Gauge, Headphones, Repeat, BookOpen, ArrowRight } from 'lucide-react';
-import '../app/globals.css';
 
 export default function Home() {
   const router = useRouter();
@@ -18,7 +17,7 @@ export default function Home() {
     {
       text: 'Feynman\'s Technique',
       icon: <Brain size={18} color="#2563eb" />,
-      onClick: () =>  window.open("https://www.goodnotes.com/blog/feynman-technique"),
+      onClick: () => window.open("https://www.goodnotes.com/blog/feynman-technique"),
     },
     {
       text: 'Built for performance',
@@ -34,7 +33,7 @@ export default function Home() {
     {
       text: 'Spaced Repetition',
       icon: <Repeat size={18} color="#2563eb" />,
-      onClick: () =>  window.open("https://www.khanacademy.org/science/learn-to-learn/x141050afa14cfed3:learn-to-learn/x141050afa14cfed3:spaced-repetition/a/l2l-spaced-repetition"),
+      onClick: () => window.open("https://www.khanacademy.org/science/learn-to-learn/x141050afa14cfed3:learn-to-learn/x141050afa14cfed3:spaced-repetition/a/l2l-spaced-repetition"),
     },
     {
       text: 'Cornell Note method',
@@ -51,7 +50,7 @@ export default function Home() {
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
           <div>
             <img
-              src="/PitStopNotes.png"
+              src="../pitstopNotes.png"
               alt="Pitstop Notes Badge"
               style={{
                 width: '160px',
