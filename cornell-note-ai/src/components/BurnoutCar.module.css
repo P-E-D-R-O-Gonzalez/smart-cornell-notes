@@ -1,0 +1,186 @@
+.trigger {
+  display: block;
+  flex-shrink: 0;
+  width: 12rem;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.trigger:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 4px;
+}
+
+.image,
+.hidden,
+.revving {
+  display: block;
+  width: 100%;
+  height: auto;
+  user-select: none;
+}
+
+.hidden { visibility: hidden; }
+
+.audioNotice {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  z-index: 1001;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #111827;
+  color: white;
+  box-shadow: 0 4px 18px #0003;
+}
+
+.audioNotice button {
+  border: 0;
+  background: transparent;
+  color: #93c5fd;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.car {
+  position: absolute;
+  /* Hold at the starting line for twenty-eight seconds before accelerating. */
+  animation: drive 2.2s 28s both;
+  will-change: transform;
+}
+
+.stopTarget {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.revving {
+  position: relative;
+  z-index: 1;
+  animation: rumble 100ms linear 280;
+}
+
+.smoke {
+  position: absolute;
+  left: 20%;
+  top: 67%;
+}
+
+.exhaustFlames {
+  position: absolute;
+  inset: 0;
+  /* Keep the flame glow below the door number. */
+  clip-path: inset(60% 0 0 0);
+  pointer-events: none;
+  /* Extinguish before the car resets to its parked position. */
+  animation: extinguish 29.45s step-end forwards;
+}
+
+.flameJet {
+  position: absolute;
+  left: calc(45% + var(--jet) * 1.5%);
+  top: calc(63% + var(--jet) * 1%);
+  width: 8.5%;
+  height: 3.6%;
+  transform: translate(-100%, -50%) rotate(-22deg);
+  transform-origin: right center;
+  filter: blur(.2px) drop-shadow(0 0 1.5px rgba(255, 157, 75, .4));
+}
+
+.flameJet i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background:
+    radial-gradient(ellipse at 92% 50%, rgba(185, 215, 255, .8), rgba(93, 147, 235, .45) 22%, transparent 48%),
+    radial-gradient(ellipse at 65% 50%, rgba(255, 216, 148, .9), rgba(245, 142, 61, .7) 40%, transparent 78%);
+  border-radius: 75% 25% 30% 75% / 50%;
+  transform-origin: right center;
+  animation: flameFlicker 1.7s ease-in-out infinite;
+  animation-delay: calc(var(--jet) * -370ms);
+}
+
+@keyframes flameFlicker {
+  0%, 100% { transform: scale(.65, .8); opacity: .45; }
+  18%, 57% { transform: scale(.8, .9); opacity: .65; }
+  24% { transform: scale(1, 1); opacity: .9; }
+  34%, 70% { transform: scale(.55, .7); opacity: .35; }
+  78% { transform: scale(.95, .95); opacity: .8; }
+  88% { transform: scale(.75, .8); opacity: .55; }
+}
+
+@keyframes extinguish {
+  from { visibility: visible; }
+  to { visibility: hidden; }
+}
+
+.smoke i {
+  position: absolute;
+  width: 36px;
+  height: 30px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(38, 42, 48, .98), rgba(75, 80, 88, .85) 45%, rgba(100, 105, 112, .4) 60%, transparent 75%);
+  opacity: 0;
+  animation: smoke 1.35s ease-out 21 both;
+  animation-delay: calc(var(--puff) * 110ms);
+}
+
+@keyframes rumble {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(-1px, -1px); }
+  75% { transform: translate(1px, 1px); }
+}
+
+@keyframes smoke {
+  0% { opacity: 0; transform: translate(-12px, -8px) scale(.35); }
+  15% { opacity: .9; }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-80px - var(--puff) * 8px), calc(-35px - var(--puff) * 5px)) scale(3.5);
+  }
+}
+
+@keyframes drive {
+  0% {
+    transform: translateX(0);
+    opacity: 1;
+    animation-timing-function: cubic-bezier(.65, 0, 1, .55);
+  }
+  64% { transform: translateX(100vw); opacity: 1; }
+  65% { transform: translateX(100vw); opacity: 0; }
+  66%, 82% { transform: translateX(0); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .car { animation: gentleFlash 600ms ease-out both; }
+  .revving, .smoke i { animation: none; }
+  .exhaustFlames { display: none; animation: none; }
+  .flameJet i { animation: none; }
+
+  @keyframes gentleFlash {
+    0%, 100% { opacity: 1; }
+    50% { opacity: .55; }
+  }
+}

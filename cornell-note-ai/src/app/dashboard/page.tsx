@@ -5,97 +5,69 @@ import { useRouter } from 'next/navigation';
 import ImageUploader from '@/components/ImageUploader';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { createClient } from '@/lib/supabase/client';
 import { Note } from '@/types';
 import { Calendar, Trash2, ArrowRight, BookOpen, Sparkles, CheckCircle2 } from 'lucide-react';
 import styles from '../page.module.css';
+import { readGenerationStream, type GenerationStep, type StepProgress } from '@/lib/generation-progress';
+
+function getNoteExcerpt(note: Note) {
+  const source = note.summary?.trim() || (Array.isArray(note.notes) ? note.notes.join(' ') : '');
+  const plainText = source
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!plainText) return 'No extracted note content available.';
+  return plainText.length > 180 ? `${plainText.slice(0, 177)}...` : plainText;
+}
 
 export default function Dashboard() {
   const router = useRouter();
-  const supabase = createClient();
   const [notes, setNotes] = useState<Note[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [loadingStep, setLoadingStep] = useState(0);
-  const [isDbAvailable, setIsDbAvailable] = useState(false);
+  const [progress, setProgress] = useState<Partial<Record<GenerationStep, StepProgress>>>({});
+  const [generationError, setGenerationError] = useState<string | null>(null);
   const [includeQuestions, setIncludeQuestions] = useState(false);
   const [includeSummary, setIncludeSummary] = useState(false);
+  const [notesError, setNotesError] = useState<string | null>(null);
 
-  // Check database connectivity and fetch notes
+  // Notes are loaded through the authenticated server route, never from the browser database client.
   useEffect(() => {
     const fetchNotes = async () => {
-      let fetchedNotes: Note[] = [];
-
       try {
-        const { data, error } = await supabase
-          .from('notes')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (!error && data) {
-          fetchedNotes = data as Note[];
-          setIsDbAvailable(true);
-        } else {
-          console.warn('Supabase database error, falling back to local storage.');
-        }
+        const response = await fetch('/api/notes');
+        if (!response.ok) throw new Error('Could not load notes.');
+        setNotes(await response.json());
       } catch (err) {
-        console.warn('Failed to connect to Supabase, falling back to local storage:', err);
-      }
-
-      // Fallback/load local storage notes
-      try {
-        const local = localStorage.getItem('cornell_notes');
-        const localNotes: Note[] = local ? JSON.parse(local) : [];
-
-        // Merge notes (avoiding duplicates by id)
-        const combined = [...fetchedNotes];
-        localNotes.forEach(localNote => {
-          if (!combined.some(n => n.id === localNote.id)) {
-            combined.push(localNote);
-          }
-        });
-
-        // Sort combined notes by created_at descending
-        combined.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-        setNotes(combined);
-      } catch (err) {
-        console.error('Error loading local notes:', err);
+        console.error('Failed to load notes:', err);
+        setNotesError('Your notes could not be loaded yet. You can still upload a new note.');
       }
     };
 
     fetchNotes();
-  }, [supabase]);
+  }, []);
 
-  // Animate loading steps
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (isLoading) {
-      setLoadingStep(0);
-      const steps = [1000, 2500, 4500]; // timing for state changes
+  const generationSteps: { id: GenerationStep; label: string }[] = [
+    { id: 'storage', label: 'Store source image' },
+    { id: 'extraction', label: 'Extract handwritten text' },
+    ...(includeQuestions ? [{ id: 'questions' as const, label: 'Generate study questions' }] : []),
+    ...(includeSummary ? [{ id: 'summary' as const, label: 'Generate summary' }] : []),
+    { id: 'save', label: 'Save Cornell note' },
+  ];
+  const completedSteps = generationSteps.filter(({ id }) => progress[id]?.status === 'complete').length;
 
-      const runStep = (index: number) => {
-        if (index < steps.length) {
-          timer = setTimeout(() => {
-            setLoadingStep(index + 1);
-            runStep(index + 1);
-          }, steps[index]);
-        }
-      };
-
-      runStep(0);
-    } else {
-      setLoadingStep(0);
-    }
-    return () => clearTimeout(timer);
-  }, [isLoading]);
-
-  const handleImageSelected = async (base64Data: string, _file: File) => {
+  const handleImageSelected = async (base64Data: string) => {
     setIsLoading(true);
+    setProgress({});
+    setGenerationError(null);
 
     try {
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/x-ndjson',
         },
         body: JSON.stringify({
           image: base64Data,
@@ -105,20 +77,14 @@ export default function Dashboard() {
       });
 
       if (!response.ok) {
-        throw new Error('Note generation failed.');
+        const result = await response.json().catch(() => null);
+        throw new Error(result?.error || 'Note generation failed.');
       }
 
-      const generatedNote: Note = await response.json();
-
-      // Save to local storage
-      try {
-        const local = localStorage.getItem('cornell_notes');
-        const localNotes: Note[] = local ? JSON.parse(local) : [];
-        localNotes.unshift(generatedNote);
-        localStorage.setItem('cornell_notes', JSON.stringify(localNotes));
-      } catch (err) {
-        console.error('Failed to save note to local storage:', err);
-      }
+      if (!response.body) throw new Error('Live progress is unavailable. Please try again.');
+      const generatedNote = await readGenerationStream(response.body, update => {
+        setProgress(previous => ({ ...previous, [update.step]: update }));
+      });
 
       // Add to state and redirect
       setNotes((prev) => [generatedNote, ...prev]);
@@ -126,7 +92,7 @@ export default function Dashboard() {
 
     } catch (err) {
       console.error('Error generating notes:', err);
-      alert('Failed to generate note. Check your API keys and connection.');
+      setGenerationError(err instanceof Error ? err.message : 'Failed to generate note. Please try again.');
       setIsLoading(false);
     }
   };
@@ -138,18 +104,8 @@ export default function Dashboard() {
     if (!confirm('Are you sure you want to delete this note?')) return;
 
     try {
-      // 1. Delete from local storage if exists
-      const local = localStorage.getItem('cornell_notes');
-      if (local) {
-        const localNotes: Note[] = JSON.parse(local);
-        const updated = localNotes.filter((n) => n.id !== id);
-        localStorage.setItem('cornell_notes', JSON.stringify(updated));
-      }
-
-      // 2. Delete from database if database is configured and it's a DB note
-      if (isDbAvailable && !id.startsWith('local-')) {
-        await supabase.from('notes').delete().eq('id', id);
-      }
+      const response = await fetch(`/api/notes/${id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Could not delete note.');
 
       setNotes((prev) => prev.filter((n) => n.id !== id));
     } catch (err) {
@@ -190,31 +146,39 @@ export default function Dashboard() {
 
         {/* Upload Action Pill / Loading Card */}
         <div style={{ maxWidth: '600px', width: '100%', margin: '0 auto 48px auto' }}>
+          {generationError && <p role="alert" style={{ color: '#b91c1c', background: '#fef2f2', padding: '16px', borderRadius: '12px', marginBottom: '16px' }}>{generationError}</p>}
           {isLoading ? (
             <Card style={{ backgroundColor: '#ffffff', border: '1px solid rgba(0,0,0,0.06)' }}>
               <CardContent className={styles.loadingCard}>
                 <div className={styles.spinner} style={{ borderTopColor: '#2563eb' }} />
                 <div>
-                  <h3 style={{ fontWeight: 700, fontSize: '1.25rem', marginBottom: '6px', color: '#ffffffff', fontFamily: 'var(--font-outfit)' }}>
+                  <h3 style={{ fontWeight: 700, fontSize: '1.25rem', marginBottom: '6px', color: '#111827', fontFamily: 'var(--font-outfit)' }}>
                     Generating Your Cornell Notes
                   </h3>
-                  <p style={{ color: '#ffffffff', fontSize: '0.9rem' }}>Processing visual contents...</p>
+                  <p role="status" style={{ color: '#4b5563', fontSize: '0.9rem' }}>
+                    {Object.keys(progress).length ? `${completedSteps} of ${generationSteps.length} steps completed` : 'Sending image and waiting for the server…'}
+                  </p>
+                  <p style={{ color: '#6b7280', fontSize: '0.8rem', marginTop: '6px' }}>Updates reflect completed work. Each step can take a different amount of time.</p>
                 </div>
 
-                {/* Visual indicator of pipeline steps */}
-                <div className={styles.loadingSteps} style={{ color: '#ffffffff' }}>
-                  <div className={`${styles.loadingStep} ${loadingStep >= 0 ? styles.loadingStepActive : ''}`} style={{ color: loadingStep >= 0 ? '#2563eb' : '#9ca3af', opacity: loadingStep >= 0 ? 1 : 0.5 }}>
-                    {loadingStep > 0 ? <CheckCircle2 size={16} color="#10b981" /> : <Sparkles size={16} />}
-                    <span>Extracting text and analyzing structure...</span>
-                  </div>
-                  <div className={`${styles.loadingStep} ${loadingStep >= 1 ? styles.loadingStepActive : ''}`} style={{ color: loadingStep >= 1 ? '#2563eb' : '#9ca3af', opacity: loadingStep >= 1 ? 1 : 0.5 }}>
-                    {loadingStep > 1 ? <CheckCircle2 size={16} color="#10b981" /> : <BookOpen size={16} />}
-                    <span>Formulating cues and questions...</span>
-                  </div>
-                  <div className={`${styles.loadingStep} ${loadingStep >= 2 ? styles.loadingStepActive : ''}`} style={{ color: loadingStep >= 2 ? '#2563eb' : '#9ca3af', opacity: loadingStep >= 2 ? 1 : 0.5 }}>
-                    {loadingStep > 2 ? <CheckCircle2 size={16} color="#10b981" /> : <Sparkles size={16} />}
-                    <span>Structuring final Cornell layout...</span>
-                  </div>
+                <div className={styles.loadingSteps} aria-live="polite" style={{ width: '100%', textAlign: 'left' }}>
+                  {generationSteps.map(({ id, label }) => {
+                    const step = progress[id];
+                    const status = step?.status ?? 'pending';
+                    return (
+                      <div key={id} style={{ padding: '10px 0', borderBottom: '1px solid #e5e7eb', color: status === 'running' ? '#1d4ed8' : '#374151' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          {status === 'complete' ? <CheckCircle2 size={16} color="#15803d" /> : <Sparkles size={16} />}
+                          <span style={{ fontWeight: 600 }}>{label}</span>
+                          <span style={{ marginLeft: 'auto', fontSize: '0.8rem' }}>
+                            {status === 'pending' ? 'Waiting' : status === 'running' ? 'In progress' : status === 'warning' ? 'Warning' : status === 'failed' ? 'Failed' : 'Complete'}
+                            {step?.durationMs !== undefined && ` · ${(step.durationMs / 1000).toFixed(1)}s`}
+                          </span>
+                        </div>
+                        {step?.detail && <p style={{ fontSize: '0.8rem', margin: '4px 0 0 24px' }}>{step.detail}</p>}
+                      </div>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
@@ -337,6 +301,12 @@ export default function Dashboard() {
             </h2>
           </div>
 
+          {notesError && (
+            <p role="status" style={{ textAlign: 'center', color: '#b45309', marginBottom: '16px' }}>
+              {notesError}
+            </p>
+          )}
+
           {notes.length === 0 ? (
             <div className={styles.emptyState} style={{ backgroundColor: 'rgba(255, 255, 255, 0.5)', borderColor: 'rgba(0,0,0,0.08)', padding: '50px 20px' }}>
               <BookOpen size={44} style={{ margin: '0 auto 16px auto', opacity: 0.6, color: '#2563eb' }} />
@@ -377,7 +347,9 @@ export default function Dashboard() {
                         day: 'numeric',
                       })}
                     </div>
-                    <p className={styles.noteCardExcerpt} style={{ color: '#4b5563', fontSize: '0.875rem' }}>{note.summary}</p>
+                    <p className={styles.noteCardExcerpt} style={{ color: '#4b5563', fontSize: '0.875rem' }}>
+                      {getNoteExcerpt(note)}
+                    </p>
 
                     <div className={styles.noteCardFooter} style={{ borderTopColor: 'rgba(0,0,0,0.06)' }}>
                       <Button

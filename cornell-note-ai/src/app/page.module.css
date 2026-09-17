@@ -1,3 +1,45 @@
+.destinationButton {
+  text-decoration: none;
+  font: inherit;
+}
+
+.destinationButton:focus-visible {
+  outline: 3px solid #60a5fa;
+  outline-offset: 4px;
+}
+
+.destinationTooltip {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: min(300px, 70vw);
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #111827;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  text-align: left;
+  box-shadow: 0 4px 16px #0003;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.destinationButton:hover,
+.destinationButton:focus-visible {
+  z-index: 11;
+}
+
+.destinationButton:hover .destinationTooltip,
+.destinationButton:focus-visible .destinationTooltip {
+  visibility: visible;
+}
+
 .main {
   padding: 40px 0 80px 0;
   display: flex;

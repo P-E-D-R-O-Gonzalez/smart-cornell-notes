@@ -3,13 +3,14 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { Brain, Gauge, Headphones, Repeat, BookOpen, ArrowRight } from 'lucide-react';
+import styles from './page.module.css';
 
 export default function Home() {
   const router = useRouter();
 
   const handleLofiClick = () => {
     // Fire the custom event to open the Lofi Cafe drawer
-    const event = new CustomEvent('toggle-lofi-player');
+    const event = new CustomEvent('open-lofi-player');
     window.dispatchEvent(event);
   };
 
@@ -17,28 +18,28 @@ export default function Home() {
     {
       text: 'Feynman\'s Technique',
       icon: <Brain size={18} color="#2563eb" />,
-      onClick: () => window.open("https://www.goodnotes.com/blog/feynman-technique"),
+      href: "https://www.goodnotes.com/blog/feynman-technique",
     },
     {
       text: 'Built for performance',
       icon: <Gauge size={18} color="#2563eb" />,
-      onClick: () => window.open("https://pmc.ncbi.nlm.nih.gov/articles/PMC8108503/"),
+      href: "https://pmc.ncbi.nlm.nih.gov/articles/PMC8108503/",
     },
     {
       text: 'Lofi Music',
       icon: <Headphones size={18} color="#2563eb" />,
-      onClick: () => window.open("https://www.calm.com/blog/benefits-of-lofi-music"),
+      onClick: handleLofiClick,
       badge: 'Live Radio',
     },
     {
       text: 'Spaced Repetition',
       icon: <Repeat size={18} color="#2563eb" />,
-      onClick: () => window.open("https://www.khanacademy.org/science/learn-to-learn/x141050afa14cfed3:learn-to-learn/x141050afa14cfed3:spaced-repetition/a/l2l-spaced-repetition"),
+      href: "https://www.khanacademy.org/science/learn-to-learn/x141050afa14cfed3:learn-to-learn/x141050afa14cfed3:spaced-repetition/a/l2l-spaced-repetition",
     },
     {
       text: 'Cornell Note method',
       icon: <BookOpen size={18} color="#2563eb" />,
-      onClick: () => window.open("https://lsc.cornell.edu/how-to-study/taking-notes/cornell-note-taking-system/"),
+      href: "https://lsc.cornell.edu/how-to-study/taking-notes/cornell-note-taking-system/",
     },
   ];
 
@@ -78,6 +79,7 @@ export default function Home() {
         {/* CTA Button */}
         <div style={{ marginBottom: '60px' }}>
           <button
+            className={styles.destinationButton}
             onClick={() => router.push('/dashboard')}
             style={{
               backgroundColor: '#1d4ed8',
@@ -92,6 +94,7 @@ export default function Home() {
               display: 'inline-flex',
               alignItems: 'center',
               gap: '8px',
+              position: 'relative',
               transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
             }}
             onMouseEnter={(e) => {
@@ -118,9 +121,17 @@ export default function Home() {
             gap: '20px',
           }}
         >
-          {features.map((feature, idx) => (
-            <div
+          {features.map((feature, idx) => {
+            const FeatureTag = feature.href ? 'a' : 'button';
+            return (
+            <FeatureTag
               key={idx}
+              className={styles.destinationButton}
+              href={feature.href}
+              target={feature.href ? '_blank' : undefined}
+              rel={feature.href ? 'noopener noreferrer' : undefined}
+              type={feature.href ? undefined : 'button'}
+              aria-describedby={`feature-destination-${idx}`}
               onClick={feature.onClick}
               style={{
                 backgroundColor: '#ffffff',
@@ -147,6 +158,9 @@ export default function Home() {
               }}
             >
               {feature.icon}
+              <span id={`feature-destination-${idx}`} role="tooltip" className={styles.destinationTooltip}>
+                {feature.href ? `Read article in a new tab: ${feature.href}` : 'Open the Lofi Cafe music player here'}
+              </span>
               <span
                 style={{
                   fontWeight: 600,
@@ -174,8 +188,8 @@ export default function Home() {
                   {feature.badge}
                 </span>
               )}
-            </div>
-          ))}
+            </FeatureTag>
+          );})}
         </div>
       </main>
 

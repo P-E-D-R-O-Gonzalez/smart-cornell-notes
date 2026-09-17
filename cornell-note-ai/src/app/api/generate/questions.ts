@@ -1,7 +1,8 @@
 import { openai } from '@/lib/openai';
 import { zodResponseFormat } from 'openai/helpers/zod';
 import { z } from 'zod';
-import { createServerClient } from '@/lib/supabase/server';
+import { auth } from '@clerk/nextjs/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 const QuestionsSchema = z.object({
     questions: z.array(z.string()).describe("5 study questions evaluating the text.")
@@ -30,7 +31,9 @@ export async function generateQuestions(rawText: string): Promise<string[]> {
 
 export async function POST(req: Request) {
     try {
-        const supabase = createServerClient();
+        const { userId } = await auth();
+        if (!userId) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+        const supabase = createAdminClient();
 
         const { noteId, rawNotes } = await req.json();
         
@@ -41,6 +44,7 @@ export async function POST(req: Request) {
                 .from('notes')
                 .select('*')
                 .eq('id', noteId)
+                .eq('clerk_user_id', userId)
                 .single();
             
             if (!error && data) {
@@ -58,7 +62,8 @@ export async function POST(req: Request) {
             await supabase
                 .from('notes')
                 .update({ cues: questions })
-                .eq('id', noteId);
+                .eq('id', noteId)
+                .eq('clerk_user_id', userId);
         }
 
         return Response.json({ questions });

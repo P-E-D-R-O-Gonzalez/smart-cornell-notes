@@ -5,7 +5,6 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { CornellLayout } from '@/components/CornellLayout';
 import { Note, CornellData } from '@/types';
-import { createClient } from '@/lib/supabase/client';
 import { ChevronLeft, ArrowLeft, Loader2, FileWarning } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
@@ -14,7 +13,6 @@ export default function NoteViewerPage() {
   const params = useParams();
   const id = params.id as string;
 
-  const supabase = createClient();
   const [note, setNote] = useState<Note | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -27,96 +25,44 @@ export default function NoteViewerPage() {
       setIsLoading(true);
       setErrorMsg(null);
 
-      let dbNote: Note | null = null;
-
-      // 1. Fetch from Supabase database if applicable
-      if (!id.startsWith('local-')) {
-        try {
-          const { data, error } = await supabase
-            .from('notes')
-            .select('*')
-            .eq('id', id)
-            .single();
-
-          if (!error && data) {
-            dbNote = data as Note;
-          }
-        } catch (err) {
-          console.warn('Database fetch failed, checking local storage:', err);
+      try {
+        const response = await fetch(`/api/notes/${id}`);
+        if (response.status === 404) {
+          setErrorMsg('Note not found. It may have been deleted or you do not have access to it.');
+        } else if (!response.ok) {
+          throw new Error('Could not load note.');
+        } else {
+          setNote(await response.json());
         }
-      }
-
-      // 2. Fetch from local storage if DB note not found or if local ID
-      if (!dbNote) {
-        try {
-          const local = localStorage.getItem('cornell_notes');
-          if (local) {
-            const localNotes: Note[] = JSON.parse(local);
-            const found = localNotes.find((n) => n.id === id);
-            if (found) {
-              dbNote = found;
-            }
-          }
-        } catch (err) {
-          console.error('Failed to read from local storage:', err);
-        }
-      }
-
-      if (dbNote) {
-        setNote(dbNote);
-      } else {
-        setErrorMsg('Note not found. It may have been deleted or the link is invalid.');
+      } catch (err) {
+        console.error('Failed to load note:', err);
+        setErrorMsg('Could not load this note. Please try again.');
       }
       
       setIsLoading(false);
     };
 
     fetchNote();
-  }, [id, supabase]);
+  }, [id]);
 
   const handleSaveNote = async (updatedData: CornellData) => {
     if (!note || !id) return;
     setIsSaving(true);
 
-    // 1. Save to local storage
     try {
-      const local = localStorage.getItem('cornell_notes');
-      if (local) {
-        const localNotes: Note[] = JSON.parse(local);
-        const updated = localNotes.map((n) =>
-          n.id === id
-            ? { ...n, ...updatedData }
-            : n
-        );
-        localStorage.setItem('cornell_notes', JSON.stringify(updated));
-      }
+      const response = await fetch(`/api/notes/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedData),
+      });
+      if (!response.ok) throw new Error('Could not save note.');
+      setNote(await response.json());
     } catch (err) {
-      console.error('Local storage update failed:', err);
+      console.error('Database update failed:', err);
+      alert('Failed to save this note. Please try again.');
+    } finally {
+      setIsSaving(false);
     }
-
-    // 2. Save to database if applicable
-    if (!id.startsWith('local-')) {
-      try {
-        const { error } = await supabase
-          .from('notes')
-          .update({
-            title: updatedData.title,
-            cues: updatedData.cues,
-            notes: updatedData.notes,
-            summary: updatedData.summary,
-          })
-          .eq('id', id);
-
-        if (error) throw error;
-      } catch (err) {
-        console.error('Database update failed:', err);
-        alert('Failed to save to database, but changes were saved locally.');
-      }
-    }
-
-    // Update state
-    setNote((prev) => prev ? { ...prev, ...updatedData } : null);
-    setIsSaving(false);
   };
 
   if (isLoading) {
@@ -160,6 +106,8 @@ export default function NoteViewerPage() {
       <CornellLayout
         initialData={{
           title: note.title,
+          classPeriod: note.classPeriod,
+          essentialQuestion: note.essentialQuestion,
           cues: note.cues,
           notes: note.notes,
           summary: note.summary,

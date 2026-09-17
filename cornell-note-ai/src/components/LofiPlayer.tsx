@@ -6,16 +6,28 @@ import { Headphones, X, Music, Disc, ExternalLink, Radio } from 'lucide-react';
 export default function LofiPlayer() {
   const [isOpen, setIsOpen] = useState(false);
   const [playerType, setPlayerType] = useState<'loficafe' | 'youtube'>('loficafe');
+  const [burnoutActive, setBurnoutActive] = useState(false);
+
+  useEffect(() => {
+    const handleBurnout = (event: Event) => {
+      setBurnoutActive((event as CustomEvent<{ active: boolean }>).detail.active);
+    };
+    window.addEventListener('burnout-playback', handleBurnout);
+    return () => window.removeEventListener('burnout-playback', handleBurnout);
+  }, []);
 
   // Listen for global events to open the lofi player
   useEffect(() => {
     const handleToggleLofi = () => {
       setIsOpen((prev) => !prev);
     };
+    const handleOpenLofi = () => setIsOpen(true);
 
     window.addEventListener('toggle-lofi-player', handleToggleLofi);
+    window.addEventListener('open-lofi-player', handleOpenLofi);
     return () => {
       window.removeEventListener('toggle-lofi-player', handleToggleLofi);
+      window.removeEventListener('open-lofi-player', handleOpenLofi);
     };
   }, []);
 
@@ -108,7 +120,11 @@ export default function LofiPlayer() {
 
         {/* Iframe Content Area */}
         <div style={{ flex: 1, position: 'relative', backgroundColor: '#000000', display: 'flex', flexDirection: 'column' }}>
-          {playerType === 'loficafe' ? (
+          {burnoutActive ? (
+            <div role="status" style={{ padding: '32px 24px', color: '#ffffff', textAlign: 'center', margin: 'auto' }}>
+              Music is paused while the car is running. The player will return after the burnout.
+            </div>
+          ) : playerType === 'loficafe' ? (
             <>
               <iframe
                 src="https://loficafe.net/embed/studying"

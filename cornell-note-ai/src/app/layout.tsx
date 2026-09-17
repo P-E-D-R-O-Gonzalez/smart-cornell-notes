@@ -1,3 +1,4 @@
+import { ClerkProvider } from '@clerk/nextjs';
 import type { Metadata } from 'next';
 import { Outfit, Inter } from 'next/font/google';
 import './globals.css';
@@ -35,9 +36,11 @@ export default function RootLayout({
         <link rel="icon" href="/favicon.ico" sizes="any" />
       </head>
       <body style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#d9d9d9' }}>
-        <Header />
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>{children}</div>
-        <LofiPlayer />
+        <ClerkProvider>
+          <Header />
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>{children}</div>
+          <LofiPlayer />
+        </ClerkProvider>
       </body>
     </html>
   );

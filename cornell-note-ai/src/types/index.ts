@@ -1,5 +1,7 @@
 export interface CornellData {
   title: string;
+  classPeriod: string;
+  essentialQuestion: string;
   cues: string[];
   notes: string[];
   summary: string;
@@ -8,6 +10,8 @@ export interface CornellData {
 export interface Note {
   id: string;
   title: string;
+  classPeriod: string;
+  essentialQuestion: string;
   cues: string[];
   notes: string[];
   summary: string;

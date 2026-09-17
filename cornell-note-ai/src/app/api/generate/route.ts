@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { auth } from '@clerk/nextjs/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { extractTextFromImage } from './extract';
 import { generateQuestions } from './questions';
 import { generateSummary } from './summary';
+import type { GenerationEvent, GenerationStep, StepProgress } from '@/lib/generation-progress';
 
-const BULLET_PREFIX = /^(?:[-*•▪◦]|\d+[.)])\s+/;
+const NOTE_PREFIX = /^(?:[-*•‣◦▪︎‒–—]|\d+[.)])\s+/u;
 
 /**
  * Clean line splits: blank lines start a new note; bullet/number markers also start a new note.
@@ -28,8 +30,8 @@ function splitNotes(rawText: string): string[] {
       continue;
     }
 
-    const isBullet = BULLET_PREFIX.test(line);
-    const content = isBullet ? line.replace(BULLET_PREFIX, '').trim() : line;
+    const isBullet = NOTE_PREFIX.test(line);
+    const content = isBullet ? line.replace(NOTE_PREFIX, '').trim() : line;
     if (!content) continue;
 
     if (isBullet || !current) {
@@ -52,20 +54,47 @@ function deriveTitle(notes: string[]): string {
 
 export async function POST(request: Request) {
   try {
-    const supabase = createServerClient();
+    const { userId } = await auth();
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const supabase = createAdminClient();
 
     const body = await request.json();
     const { image, includeQuestions, includeSummary } = body; // Base64 data url
 
-    if (!image) {
+    if (typeof image !== 'string' || !image) {
       return NextResponse.json({ error: 'Image data is required.' }, { status: 400 });
     }
 
-    let imageUrl = '';
-
     const hasOpenAI = process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'your_openai_api_key_here';
+    if (!hasOpenAI) {
+      return NextResponse.json({ error: 'Note generation is not configured yet.' }, { status: 500 });
+    }
+
+    const generate = async (report: (progress: StepProgress) => void) => {
+    let imagePath = '';
+    const starts = new Map<GenerationStep, number>();
+    const begin = (step: GenerationStep) => {
+      starts.set(step, performance.now());
+      report({ step, status: 'running' });
+    };
+    const finish = (step: GenerationStep, detail: string, status: StepProgress['status'] = 'complete') => {
+      report({ step, status, detail, durationMs: Math.round(performance.now() - (starts.get(step) ?? performance.now())) });
+    };
+    const measured = async <T,>(step: GenerationStep, work: () => Promise<T>, detail: (result: T) => string): Promise<T> => {
+      begin(step);
+      try {
+        const result = await work();
+        finish(step, detail(result));
+        return result;
+      } catch (error) {
+        finish(step, 'This step could not be completed.', 'failed');
+        throw error;
+      }
+    };
 
     // 1. Upload image to Supabase Storage
+    begin('storage');
     if (image.startsWith('data:image')) {
       try {
         const matches = image.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
@@ -74,7 +103,7 @@ export async function POST(request: Request) {
           const base64Data = matches[2];
           const buffer = Buffer.from(base64Data, 'base64');
 
-          const fileName = crypto.randomUUID();
+          const fileName = `${userId}/${crypto.randomUUID()}`;
 
           const { data, error } = await supabase.storage
             .from('note-images')
@@ -84,77 +113,99 @@ export async function POST(request: Request) {
             });
 
           if (!error && data) {
-            const { data: publicUrlData } = supabase.storage
-              .from('note-images')
-              .getPublicUrl(fileName);
-
-            if (publicUrlData) {
-              imageUrl = publicUrlData.publicUrl;
-            }
+            imagePath = data.path;
           }
         }
       } catch (uploadErr) {
         console.warn('Supabase storage upload failed, proceeding without uploaded file:', uploadErr);
       }
     }
-
-    // 2. OpenAI check
-    if (!hasOpenAI) {
-      return NextResponse.json(
-        { error: 'OpenAI API key is not configured. Please add your API key to .env.local.' },
-        { status: 500 }
-      );
-    }
+    finish('storage', imagePath ? 'Source image stored' : 'Source image unavailable; continuing with note generation', imagePath ? 'complete' : 'warning');
 
     // 3. Extract text from image
-    const rawText = await extractTextFromImage(image);
-    if (!rawText) {
-      throw new Error('Failed to extract raw text from image.');
-    }
+    const rawText = await measured('extraction', async () => {
+      const text = await extractTextFromImage(image);
+      if (!text.trim()) throw new Error('No text could be extracted from this image.');
+      return text;
+    }, text => `${text.trim().split(/\s+/).length} words extracted · ${splitNotes(text).length} note sections`);
 
     const notes = splitNotes(rawText);
 
     // 4. Generate optional study aids in parallel. Text extraction always runs.
     const [summary, cues] = await Promise.all([
-      includeSummary === true ? generateSummary(rawText) : Promise.resolve(''),
-      includeQuestions === true ? generateQuestions(rawText) : Promise.resolve<string[]>([]),
+      includeSummary === true ? measured('summary', () => generateSummary(rawText), text => `${text.trim() ? text.trim().split(/\s+/).length : 0} summary words`) : Promise.resolve(''),
+      includeQuestions === true ? measured('questions', () => generateQuestions(rawText), questions => `${questions.length} questions generated`) : Promise.resolve<string[]>([]),
     ]);
 
     const parsedNote = {
       title: deriveTitle(notes),
+      classPeriod: '',
+      essentialQuestion: '',
       cues,
       notes,
       summary,
     };
 
     try {
+      begin('save');
       const { data, error } = await supabase
         .from('notes')
         .insert({
           title: parsedNote.title,
+          class_period: parsedNote.classPeriod,
+          essential_question: parsedNote.essentialQuestion,
           cues: parsedNote.cues,
           notes: parsedNote.notes,
           summary: parsedNote.summary,
-          image_url: imageUrl || null,
+          image_path: imagePath || null,
+          clerk_user_id: userId,
         })
         .select()
         .single();
 
       if (error) throw error;
-      return NextResponse.json(data);
+      finish('save', 'Note saved to your dashboard');
+      return NextResponse.json({ ...data, id: String(data.id), classPeriod: data.class_period ?? '', essentialQuestion: data.essential_question ?? '' });
     } catch (dbErr) {
-      console.warn('Database save failed, returning local temporary record:', dbErr);
-      const tempId = `local-${Date.now()}`;
-      return NextResponse.json({
-        id: tempId,
-        ...parsedNote,
-        image_url: imageUrl || image,
-        created_at: new Date().toISOString(),
-      });
+      console.error('Database save failed:', dbErr);
+      finish('save', 'Your note could not be saved.', 'failed');
+      return NextResponse.json({ error: 'Could not save the generated note.' }, { status: 500 });
     }
+    };
 
-  } catch (err: any) {
+    // Preserve the JSON response for callers that do not request progress.
+    if (!request.headers.get('accept')?.includes('application/x-ndjson')) {
+      return await generate(() => {});
+    }
+    let closed = false;
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        const send = (event: GenerationEvent) => {
+          if (!closed) controller.enqueue(encoder.encode(JSON.stringify(event) + '\n'));
+        };
+        try {
+          const result = await generate(progress => send({ type: 'progress', ...progress }));
+          const payload = await result.json();
+          send(result.ok ? { type: 'complete', note: payload } : { type: 'error', error: payload.error });
+        } catch (error) {
+          console.error('Generation stream failed:', error);
+          send({ type: 'error', error: 'Note generation failed. Please try again.' });
+        } finally {
+          if (!closed) controller.close();
+          closed = true;
+        }
+      },
+      cancel() { closed = true; },
+    });
+    return new Response(stream, { headers: {
+      'Content-Type': 'application/x-ndjson; charset=utf-8',
+      'Cache-Control': 'no-cache, no-transform',
+      'X-Accel-Buffering': 'no',
+    } });
+
+  } catch (err: unknown) {
     console.error('API generate error:', err);
-    return NextResponse.json({ error: err.message || 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ error: 'Note generation failed. Please try again.' }, { status: 500 });
   }
 }

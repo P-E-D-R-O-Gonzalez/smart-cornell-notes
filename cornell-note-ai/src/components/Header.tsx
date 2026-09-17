@@ -2,8 +2,12 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import BurnoutCar from './BurnoutCar';
+import { Show, SignInButton, SignUpButton, UserButton } from '@clerk/nextjs';
 
 export default function Header() {
+  const pathname = usePathname();
 
   return (
     <header
@@ -30,7 +34,7 @@ export default function Header() {
       >
         {/* Left Side: Logo & Muscle Car */}
         {/* Muscle Car Decal */}
-        <Link href="/">
+        {pathname === '/' ? <BurnoutCar /> : <Link href="/">
           <img
           src="/car.png"
           alt="Pitstop Muscle Car"
@@ -41,7 +45,7 @@ export default function Header() {
               display: 'block',
             }}
           />
-        </Link>
+        </Link>}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <Link
             href="/"
@@ -82,6 +86,48 @@ export default function Header() {
           >
             Dashboard
           </Link>
+
+          <Show when="signed-out">
+            <SignInButton>
+              <button
+                type="button"
+                style={{
+                  fontSize: '1.1rem',
+                  color: '#111827',
+                  fontWeight: 600,
+                  fontFamily: 'var(--font-inter)',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '8px 0',
+                }}
+              >
+                Sign in
+              </button>
+            </SignInButton>
+            <SignUpButton>
+              <button
+                type="button"
+                style={{
+                  fontSize: '1.05rem',
+                  color: '#ffffff',
+                  fontWeight: 700,
+                  fontFamily: 'var(--font-inter)',
+                  backgroundColor: '#2563eb',
+                  border: 'none',
+                  borderRadius: '9999px',
+                  cursor: 'pointer',
+                  padding: '10px 16px',
+                }}
+              >
+                Sign up
+              </button>
+            </SignUpButton>
+          </Show>
+
+          <Show when="signed-in">
+            <UserButton />
+          </Show>
 
         </div>
       </div>

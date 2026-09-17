@@ -17,13 +17,16 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   placeholder,
 }) => {
   const ref = useRef<HTMLDivElement>(null);
-  const lastHtml = useRef(value);
+  const lastHtml = useRef('');
 
   // Sync prop value to DOM if it changed from the outside
   useEffect(() => {
-    if (ref.current && value !== ref.current.innerHTML && value !== lastHtml.current) {
-      ref.current.innerHTML = value || '';
-      lastHtml.current = value || '';
+    const nextHtml = value || '';
+    if (ref.current && nextHtml !== lastHtml.current) {
+      if (ref.current.innerHTML !== nextHtml) {
+        ref.current.innerHTML = nextHtml;
+      }
+      lastHtml.current = nextHtml;
     }
   }, [value]);
 

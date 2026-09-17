@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useUser } from '@clerk/nextjs';
 import styles from './CornellLayout.module.css';
 import { Button } from '@/components/ui/Button';
 import { CornellData } from '@/types';
-import { Save, Printer, Plus, Trash2, Calendar, FileText, ImageIcon } from 'lucide-react';
+import { Save, Printer, Plus, Trash2, ImageIcon } from 'lucide-react';
 import { RichTextEditor } from './ui/RichTextEditor';
 import { FloatingSelectionToolbar } from './FloatingSelectionToolbar';
 
@@ -16,12 +17,19 @@ interface CornellLayoutProps {
   createdAt?: string;
 }
 
+function cleanEntry(value: string): string {
+  return value
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
+    .replace(/^(?:[-*•‣◦▪︎‒–—]|\d+[.)])\s*/u, '')
+    .trim();
+}
+
 function normalizeList(value: string[] | string | undefined | null): string[] {
-  if (Array.isArray(value)) return value;
+  if (Array.isArray(value)) return value.map(cleanEntry);
   if (typeof value === 'string' && value.trim()) {
     return value
       .split(/\r?\n/)
-      .map((line) => line.trim())
+      .map(cleanEntry)
       .filter(Boolean);
   }
   return [];
@@ -34,7 +42,10 @@ export const CornellLayout: React.FC<CornellLayoutProps> = ({
   imageUrl,
   createdAt,
 }) => {
+  const { user } = useUser();
   const [title, setTitle] = useState(initialData.title || '');
+  const [classPeriod, setClassPeriod] = useState(initialData.classPeriod || '');
+  const [essentialQuestion, setEssentialQuestion] = useState(initialData.essentialQuestion || '');
   const [cues, setCues] = useState<string[]>(() => normalizeList(initialData.cues));
   const [notes, setNotes] = useState<string[]>(() => normalizeList(initialData.notes));
   const [summary, setSummary] = useState(initialData.summary || '');
@@ -43,6 +54,8 @@ export const CornellLayout: React.FC<CornellLayoutProps> = ({
   // Sync state if initialData changes (e.g. fresh load or API returns new data)
   useEffect(() => {
     setTitle(initialData.title || '');
+    setClassPeriod(initialData.classPeriod || '');
+    setEssentialQuestion(initialData.essentialQuestion || '');
     setCues(normalizeList(initialData.cues));
     setNotes(normalizeList(initialData.notes));
     setSummary(initialData.summary || '');
@@ -51,6 +64,16 @@ export const CornellLayout: React.FC<CornellLayoutProps> = ({
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setTitle(e.target.value);
+    setIsDirty(true);
+  };
+
+  const handleEssentialQuestionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEssentialQuestion(e.target.value);
+    setIsDirty(true);
+  };
+
+  const handleClassPeriodChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setClassPeriod(e.target.value);
     setIsDirty(true);
   };
 
@@ -98,7 +121,7 @@ export const CornellLayout: React.FC<CornellLayoutProps> = ({
   const handleSave = async () => {
     if (!onSave) return;
     try {
-      await onSave({ title, cues, notes, summary });
+      await onSave({ title, classPeriod, essentialQuestion, cues, notes, summary });
       setIsDirty(false);
     } catch (err) {
       console.error('Failed to save Cornell notes:', err);
@@ -122,41 +145,47 @@ export const CornellLayout: React.FC<CornellLayoutProps> = ({
         day: 'numeric',
       });
 
+  const displayName = user?.fullName || user?.primaryEmailAddress?.emailAddress || 'Your name';
+
   return (
     <div className={styles.paper}>
       {/* Top Header Section */}
       <div className={styles.header}>
-        <div className={styles.headerLeft}>
+        <div className={styles.identity}>
+          <span className={styles.name}>{displayName}</span>
           <input
             type="text"
-            className={styles.titleInput}
-            value={title}
-            onChange={handleTitleChange}
-            placeholder="Untitled Lecture Note"
+            className={`${styles.classPeriodInput} ${!classPeriod.trim() ? styles.emptyClassPeriod : ''}`}
+            value={classPeriod}
+            onChange={handleClassPeriodChange}
+            placeholder="Class / Period"
+            aria-label="Class or period"
           />
-          <div className={styles.metaInfo}>
-            <div className={styles.metaItem}>
-              <Calendar size={13} />
-              <span>{formattedDate}</span>
-            </div>
-            <div className={styles.metaItem}>
-              <FileText size={13} />
-              <span>Cornell Study Method</span>
-            </div>
-            {imageUrl && (
-              <div className={`${styles.metaItem} no-print`}>
-                <ImageIcon size={13} />
-                <a
-                  href={imageUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ textDecoration: 'underline', color: 'var(--primary)' }}
-                >
-                  View Source Image
-                </a>
-              </div>
-            )}
-          </div>
+          <span className={styles.date}>{formattedDate}</span>
+        </div>
+
+        <div className={styles.topicFields}>
+          <label className={styles.topicField}>
+            <span>Topic:</span>
+            <input
+              type="text"
+              className={styles.topicInput}
+              value={title}
+              onChange={handleTitleChange}
+              placeholder="Enter topic"
+              aria-label="Topic"
+            />
+          </label>
+          <label className={styles.essentialQuestionField}>
+            <span>Essential Question:</span>
+            <input
+              type="text"
+              className={styles.essentialQuestionInput}
+              value={essentialQuestion}
+              onChange={handleEssentialQuestionChange}
+              placeholder="What is the central question for this lesson?"
+            />
+          </label>
         </div>
 
         {/* Buttons (Save and Print) */}
@@ -175,6 +204,17 @@ export const CornellLayout: React.FC<CornellLayoutProps> = ({
             </Button>
           )}
         </div>
+
+        {imageUrl && (
+          <a
+            className={`${styles.sourceImageLink} no-print`}
+            href={imageUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <ImageIcon size={13} /> View Source Image
+          </a>
+        )}
       </div>
 
       {/* Main Body (Cues & Notes) */}
@@ -217,8 +257,7 @@ export const CornellLayout: React.FC<CornellLayoutProps> = ({
           </div>
           <ul className={styles.itemList}>
             {notes.map((note, idx) => (
-              <li key={`note-${idx}`} className={styles.itemRow}>
-                <span className={styles.itemBullet}>•</span>
+              <li key={`note-${idx}`} className={`${styles.itemRow} ${styles.noteRow}`}>
                 <RichTextEditor
                   value={note}
                   onChange={(val) => handleNoteChange(idx, val)}
@@ -237,7 +276,7 @@ export const CornellLayout: React.FC<CornellLayoutProps> = ({
             ))}
           </ul>
           <button type="button" onClick={addNote} className={styles.addButton}>
-            <Plus size={14} /> Add Fact / Bullet
+            <Plus size={14} /> Add Note
           </button>
         </div>
       </div>
