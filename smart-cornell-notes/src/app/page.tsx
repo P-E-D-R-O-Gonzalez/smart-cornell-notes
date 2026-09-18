@@ -110,6 +110,8 @@ export default function Home() {
           </button>
         </div>
 
+
+
         {/* Features Layout Section */}
         <div
           className={styles.features}
@@ -192,6 +194,26 @@ export default function Home() {
             </FeatureTag>
           );})}
         </div>
+        <section className={styles.demoSection} aria-labelledby="demo-title">
+          <h2 id="demo-title" className={styles.demoTitle}>See Pitstop Notes in action</h2>
+          <div className={styles.demoVideo}>
+            <iframe
+              src="https://drive.google.com/file/d/17WFo9k0Do96xsmcnVNJcyTZUzi9hdwAz/preview"
+              title="Pitstop Notes demo video"
+              loading="lazy"
+              allow="fullscreen"
+              allowFullScreen
+            />
+          </div>
+          <a
+            className={styles.demoLink}
+            href="https://drive.google.com/file/d/17WFo9k0Do96xsmcnVNJcyTZUzi9hdwAz/view"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Open demo in Google Drive <ArrowRight size={16} aria-hidden="true" />
+          </a>
+        </section>
       </main>
 
       {/* Floating animation */}
