@@ -11,7 +11,7 @@ export default function Header() {
 
   return (
     <header
-      className="no-print"
+      className="no-print site-header"
       style={{
         position: 'sticky',
         top: 0,
@@ -22,7 +22,7 @@ export default function Header() {
       }}
     >
       <div
-        className="container"
+        className="container site-header-content"
         style={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -49,6 +49,7 @@ export default function Header() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <Link
             href="/"
+            className="site-brand"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -65,6 +66,7 @@ export default function Header() {
 
         {/* Right Side: Links */}
         <div
+          className="site-navigation"
           style={{
             display: 'flex',
             alignItems: 'center',
