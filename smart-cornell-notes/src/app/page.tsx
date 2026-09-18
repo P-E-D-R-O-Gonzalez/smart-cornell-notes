@@ -45,7 +45,7 @@ export default function Home() {
 
   return (
     <div className="light-theme" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-      <main className="container" style={{ padding: '60px 24px', maxWidth: '1200px', margin: '0 auto', textAlign: 'center' }}>
+      <main className={`container ${styles.homeMain}`}>
 
         {/* Center Logo Badge */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
@@ -64,8 +64,8 @@ export default function Home() {
 
         {/* Title */}
         <h1
+          className={styles.homeTitle}
           style={{
-            fontSize: '3rem',
             fontWeight: 800,
             color: 'white',
             marginBottom: '40px',
@@ -112,6 +112,7 @@ export default function Home() {
 
         {/* Features Layout Section */}
         <div
+          className={styles.features}
           style={{
             maxWidth: '900px',
             margin: '0 auto',
