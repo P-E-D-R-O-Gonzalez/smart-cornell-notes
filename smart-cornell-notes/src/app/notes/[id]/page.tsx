@@ -8,6 +8,7 @@ import { Note, CornellData } from '@/types';
 import { ChevronLeft, ArrowLeft, Loader2, FileWarning } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { ScratchPaper } from '@/components/ScratchPaper';
+import { NoteOpenTracker } from '@/components/NoteOpenTracker';
 
 export default function NoteViewerPage() {
   const params = useParams();
@@ -20,6 +21,7 @@ export default function NoteViewerPage() {
 
   useEffect(() => {
     if (!id) return;
+    let disposed = false;
 
     const fetchNote = async () => {
       setIsLoading(true);
@@ -27,22 +29,25 @@ export default function NoteViewerPage() {
 
       try {
         const response = await fetch(`/api/notes/${id}`);
+        if (disposed) return;
         if (response.status === 404) {
           setErrorMsg('Note not found. It may have been deleted or you do not have access to it.');
         } else if (!response.ok) {
           throw new Error('Could not load note.');
         } else {
-          setNote(await response.json());
+          const loaded = await response.json();
+          if (!disposed) setNote(loaded);
         }
       } catch (err) {
         console.error('Failed to load note:', err);
-        setErrorMsg('Could not load this note. Please try again.');
+        if (!disposed) setErrorMsg('Could not load this note. Please try again.');
       }
       
-      setIsLoading(false);
+      if (!disposed) setIsLoading(false);
     };
 
     fetchNote();
+    return () => { disposed = true; };
   }, [id]);
 
   const handleSaveNote = async (updatedData: CornellData) => {
@@ -104,6 +109,7 @@ export default function NoteViewerPage() {
       </div>
 
       {/* Interactive Cornell Layout */}
+      {note.study_enabled && note.id === id && <NoteOpenTracker key={id} id={id} />}
       <CornellLayout
         initialData={{
           title: note.title,

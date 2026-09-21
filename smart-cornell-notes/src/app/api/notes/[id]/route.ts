@@ -19,7 +19,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
   const supabase = createAdminClient();
   const { data: note, error } = await supabase
     .from('notes')
-    .select('id, title, class_period, essential_question, cues, notes, summary, image_url, image_path, created_at')
+    .select('id, title, class_period, essential_question, cues, notes, summary, image_url, image_path, created_at, study_enabled, last_opened_at')
     .eq('id', id)
     .eq('clerk_user_id', userId)
     .maybeSingle();
@@ -57,7 +57,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     .update({ title, class_period: classPeriod, essential_question: essentialQuestion, cues, notes, summary })
     .eq('id', id)
     .eq('clerk_user_id', userId)
-    .select('id, title, class_period, essential_question, cues, notes, summary, created_at')
+    .select('id, title, class_period, essential_question, cues, notes, summary, created_at, study_enabled, last_opened_at')
     .maybeSingle();
 
   if (error) return NextResponse.json({ error: 'Could not save note.' }, { status: 500 });

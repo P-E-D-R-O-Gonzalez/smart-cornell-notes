@@ -184,6 +184,7 @@ export async function POST(request: Request) {
           summary: parsedNote.summary,
           image_path: imagePath || null,
           clerk_user_id: userId,
+          study_enabled: true,
         })
         .select()
         .single();

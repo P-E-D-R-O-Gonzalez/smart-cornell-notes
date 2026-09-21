@@ -8,7 +8,7 @@ export async function GET() {
 
   const { data, error } = await createAdminClient()
     .from('notes')
-    .select('id, title, class_period, essential_question, cues, notes, summary, created_at')
+    .select('id, title, class_period, essential_question, cues, notes, summary, created_at, study_enabled, last_opened_at')
     .eq('clerk_user_id', userId)
     .order('created_at', { ascending: false });
 

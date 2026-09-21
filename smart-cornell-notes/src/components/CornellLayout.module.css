@@ -358,3 +358,19 @@
     box-decoration-break: clone;
   }
 }
+
+@media screen and (max-width: 767px) {
+  .header, .cuesColumn, .notesColumn, .summarySection { padding: 16px; min-width: 0; }
+  .topicField, .essentialQuestionField { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .topicInput, .essentialQuestionInput { width: 100%; }
+  .classPeriodInput, .topicInput, .essentialQuestionInput, .itemText, .summaryTextarea { font-size: 16px; }
+  .itemText { min-width: 0; overflow-wrap: anywhere; }
+  .noteRow { margin-left: 0; padding-left: 8px; }
+  .bodyGrid { min-height: 0; }
+  .columnHeader { flex-wrap: wrap; gap: 8px; }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .deleteButton { opacity: 1; min-width: 44px; min-height: 44px; justify-content: center; }
+  .addButton { min-height: 44px; }
+}

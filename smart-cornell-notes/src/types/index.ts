@@ -17,4 +17,6 @@ export interface Note {
   summary: string;
   image_url?: string;
   created_at: string;
+  study_enabled?: boolean;
+  last_opened_at?: string | null;
 }

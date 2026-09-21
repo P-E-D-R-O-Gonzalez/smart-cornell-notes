@@ -10,6 +10,7 @@ import { Calendar, Trash2, ArrowRight, BookOpen, Sparkles, CheckCircle2 } from '
 import styles from '../page.module.css';
 import { readGenerationStream, type GenerationStep, type StepProgress } from '@/lib/generation-progress';
 import { aiActionMessage, type AiActions } from '@/lib/ai-actions';
+import { ForgettingCurve } from '@/components/ForgettingCurve';
 
 function getNoteExcerpt(note: Note) {
   const source = note.summary?.trim() || (Array.isArray(note.notes) ? note.notes.join(' ') : '');
@@ -75,21 +76,35 @@ export default function Dashboard() {
   const allowanceMessage = actions ? aiActionMessage(actions.remaining, actionCost) : null;
 
   const [notesError, setNotesError] = useState<string | null>(null);
+  const [notesLoading, setNotesLoading] = useState(true);
 
   // Notes are loaded through the authenticated server route, never from the browser database client.
   useEffect(() => {
+    let disposed = false;
+    let version = 0;
     const fetchNotes = async () => {
+      const current = ++version;
       try {
-        const response = await fetch('/api/notes');
+        const response = await fetch('/api/notes', { cache: 'no-store' });
         if (!response.ok) throw new Error('Could not load notes.');
-        setNotes(await response.json());
+        const loaded = await response.json();
+        if (!disposed && current === version) {
+          setNotes(loaded);
+          setNotesError(null);
+        }
       } catch (err) {
         console.error('Failed to load notes:', err);
-        setNotesError('Your notes could not be loaded yet. You can still upload a new note.');
+        if (!disposed && current === version) setNotesError('Your notes could not be loaded yet. You can still upload a new note.');
+      } finally {
+        if (!disposed && current === version) setNotesLoading(false);
       }
     };
 
     fetchNotes();
+    const onFocus = () => { void fetchNotes(); };
+    window.addEventListener('focus', onFocus);
+    const timer = window.setInterval(onFocus, 60_000);
+    return () => { disposed = true; window.removeEventListener('focus', onFocus); window.clearInterval(timer); };
   }, []);
 
   const generationSteps: { id: GenerationStep; label: string }[] = [
@@ -321,6 +336,7 @@ export default function Dashboard() {
         </div>
 
         {/* Recent Notes Section */}
+        <ForgettingCurve notes={notes} loading={notesLoading} error={notesError} />
         <section className={styles.notesSection} style={{ borderTop: '1px solid rgba(0, 0, 0, 0.08)', paddingTop: '40px' }}>
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '24px' }}>
             <h2
@@ -426,5 +442,4 @@ export default function Dashboard() {
     </div>
   );
 }
-
 

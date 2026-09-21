@@ -1,0 +1,33 @@
+.section { max-width: 800px; margin: 0 auto 40px; color: #172033; }
+.card { display: block; width: 100%; padding: 28px; border: 2px solid #172033; border-radius: 18px; background: #fff; color: #172033; text-align: left; cursor: pointer; font: inherit; }
+.card:hover { border-color: #1746b5; }
+.card:focus-visible, .study:focus-visible { outline: 4px solid #fbbf24; outline-offset: 5px; }
+.heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; font-size: 1.5rem; font-weight: 800; }
+.badge { padding: 6px 12px; background: #172033; color: #fff; border-radius: 8px; font-size: .95rem; }
+.intro { display: block; margin: 10px 0 16px; line-height: 1.6; color: #334155; }
+.graph { display: block; width: 100%; height: auto; margin: 16px 0 8px; overflow: visible; }
+.graph text { fill: #172033; font-size: 16px; font-family: inherit; }
+.graph .label { font-weight: 700; font-size: 18px; }
+.legend { display: flex; flex-wrap: wrap; gap: 12px 24px; font-weight: 700; }
+.legend > span { display: inline-flex; align-items: center; gap: 8px; }
+.legend i { display: inline-block; width: 30px; border-top: 5px solid #1746b5; }
+.legend .dashed { border-top: 4px dashed #172033; }
+.caption { display: block; font-size: .85rem; color: #334155; margin: 12px 0 20px; }
+.action, .study { display: inline-block; background: #1746b5; color: #fff; padding: 12px 16px; border-radius: 8px; font-weight: 700; text-decoration: none; }
+.panel { margin-top: 12px; padding: 24px; border-radius: 14px; background: #fff; color: #172033; }
+.panel h3 { font-size: 1.3rem; }
+.list { list-style: none; padding: 0; margin: 0; }
+.list li { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 20px 0; border-top: 1px solid #94a3b8; }
+.list h4 { font-size: 1.1rem; overflow-wrap: anywhere; }
+.list p { font-size: .9rem; margin-top: 8px; line-height: 1.5; }
+.reason { font-weight: 700; }
+.study { flex-shrink: 0; }
+.next { margin-top: 18px; line-height: 1.6; overflow-wrap: anywhere; }
+.caughtUp { padding-top: 10px; font-weight: 700; }
+@media (max-width: 600px) {
+  .card, .panel { padding: 16px; }
+  .list li { align-items: flex-start; flex-direction: column; gap: 12px; }
+  .graph text { font-size: 26px; }
+  .graph .label { font-size: 28px; }
+  .heading { font-size: 1.25rem; }
+}
