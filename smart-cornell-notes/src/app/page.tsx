@@ -127,72 +127,73 @@ export default function Home() {
           {features.map((feature, idx) => {
             const FeatureTag = feature.href ? 'a' : 'button';
             return (
-            <FeatureTag
-              key={idx}
-              className={styles.destinationButton}
-              href={feature.href}
-              target={feature.href ? '_blank' : undefined}
-              rel={feature.href ? 'noopener noreferrer' : undefined}
-              type={feature.href ? undefined : 'button'}
-              aria-describedby={`feature-destination-${idx}`}
-              onClick={feature.onClick}
-              style={{
-                backgroundColor: '#ffffff',
-                border: '1px solid rgba(0, 0, 0, 0.06)',
-                borderRadius: '9999px',
-                padding: '14px 28px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                cursor: 'pointer',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.03)',
-                transition: 'all 0.25s ease',
-                position: 'relative',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-3px)';
-                e.currentTarget.style.boxShadow = '0 6px 18px rgba(37, 99, 235, 0.1)';
-                e.currentTarget.style.borderColor = 'rgba(37, 99, 235, 0.3)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.03)';
-                e.currentTarget.style.borderColor = 'rgba(0, 0, 0, 0.06)';
-              }}
-            >
-              {feature.icon}
-              <span id={`feature-destination-${idx}`} role="tooltip" className={styles.destinationTooltip}>
-                {feature.href ? `Read article in a new tab: ${feature.href}` : 'Open the Lofi Cafe music player here'}
-              </span>
-              <span
+              <FeatureTag
+                key={idx}
+                className={styles.destinationButton}
+                href={feature.href}
+                target={feature.href ? '_blank' : undefined}
+                rel={feature.href ? 'noopener noreferrer' : undefined}
+                type={feature.href ? undefined : 'button'}
+                aria-describedby={`feature-destination-${idx}`}
+                onClick={feature.onClick}
                 style={{
-                  fontWeight: 600,
-                  fontSize: '1rem',
-                  color: '#111827',
-                  fontFamily: 'var(--font-inter)',
+                  backgroundColor: '#ffffff',
+                  border: '1px solid rgba(0, 0, 0, 0.06)',
+                  borderRadius: '9999px',
+                  padding: '14px 28px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.03)',
+                  transition: 'all 0.25s ease',
+                  position: 'relative',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-3px)';
+                  e.currentTarget.style.boxShadow = '0 6px 18px rgba(37, 99, 235, 0.1)';
+                  e.currentTarget.style.borderColor = 'rgba(37, 99, 235, 0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.03)';
+                  e.currentTarget.style.borderColor = 'rgba(0, 0, 0, 0.06)';
                 }}
               >
-                {feature.text}
-              </span>
-              {feature.badge && (
+                {feature.icon}
+                <span id={`feature-destination-${idx}`} role="tooltip" className={styles.destinationTooltip}>
+                  {feature.href ? `Read article in a new tab: ${feature.href}` : 'Open the Lofi Cafe music player here'}
+                </span>
                 <span
                   style={{
-                    backgroundColor: '#ef4444',
-                    color: '#ffffff',
-                    fontSize: '0.65rem',
-                    fontWeight: 700,
-                    padding: '2px 6px',
-                    borderRadius: '8px',
-                    marginLeft: '4px',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
+                    fontWeight: 600,
+                    fontSize: '1rem',
+                    color: '#111827',
+                    fontFamily: 'var(--font-inter)',
                   }}
                 >
-                  {feature.badge}
+                  {feature.text}
                 </span>
-              )}
-            </FeatureTag>
-          );})}
+                {feature.badge && (
+                  <span
+                    style={{
+                      backgroundColor: '#ef4444',
+                      color: '#ffffff',
+                      fontSize: '0.65rem',
+                      fontWeight: 700,
+                      padding: '2px 6px',
+                      borderRadius: '8px',
+                      marginLeft: '4px',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                    }}
+                  >
+                    {feature.badge}
+                  </span>
+                )}
+              </FeatureTag>
+            );
+          })}
         </div>
         <section className={styles.demoSection} aria-labelledby="demo-title">
           <h2 id="demo-title" className={styles.demoTitle}>See Pitstop Notes in action</h2>
@@ -205,15 +206,15 @@ export default function Home() {
               allowFullScreen
             />
           </div>
-          <a
-            className={styles.demoLink}
-            href="https://drive.google.com/file/d/17WFo9k0Do96xsmcnVNJcyTZUzi9hdwAz/view"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Open demo in Google Drive <ArrowRight size={16} aria-hidden="true" />
-          </a>
         </section>
+        <a
+          className={styles.supportLink}
+          href="https://buymeacoffee.com/pedro.gonzalez"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Support Creator of Pitstop Notes <ArrowRight size={16} aria-hidden="true" />
+        </a>
       </main>
 
       {/* Floating animation */}

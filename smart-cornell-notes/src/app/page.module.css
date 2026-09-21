@@ -217,7 +217,9 @@
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .homeMain {
@@ -227,7 +229,9 @@
   text-align: center;
 }
 
-.homeTitle { font-size: 3rem; }
+.homeTitle {
+  font-size: 3rem;
+}
 
 .demoSection {
   width: 100%;
@@ -237,7 +241,7 @@
 
 .demoTitle {
   margin-bottom: 20px;
-  color: var(--text-primary);
+  color: white;
   font-size: clamp(1.4rem, 4vw, 2rem);
   line-height: 1.25;
   letter-spacing: -0.02em;
@@ -259,14 +263,14 @@
   border: 0;
 }
 
-.demoLink {
+.supportLink {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   min-height: 44px;
   margin-top: 12px;
-  color: var(--primary);
+  color: #ffffff;
   font-size: 0.875rem;
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -279,28 +283,70 @@
 }
 
 @keyframes mobileReveal {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @media screen and (max-width: 600px) {
-  .homeMain { padding: 28px 16px 40px; }
-  .homeTitle { font-size: clamp(1.8rem, 8vw, 2.5rem); line-height: 1.15; }
-  .features { gap: 12px !important; }
-  .features > .destinationButton {
+  .homeMain {
+    padding: 28px 16px 40px;
+  }
+
+  .homeTitle {
+    font-size: clamp(1.8rem, 8vw, 2.5rem);
+    line-height: 1.15;
+  }
+
+  .features {
+    gap: 12px !important;
+  }
+
+  .features>.destinationButton {
     width: 100%;
     min-width: 0;
     padding: 14px 16px !important;
     text-align: left;
   }
-  .features > .destinationButton > svg { flex-shrink: 0; }
-  .destinationTooltip { max-width: calc(100vw - 48px); }
-  .loadingCard { padding: 20px; }
-  .sectionHeader, .noteCardFooter { flex-wrap: wrap; gap: 12px; }
-  .notesGrid { grid-template-columns: minmax(0, 1fr); }
-  .noteCardContent { min-width: 0; overflow-wrap: anywhere; }
+
+  .features>.destinationButton>svg {
+    flex-shrink: 0;
+  }
+
+  .destinationTooltip {
+    max-width: calc(100vw - 48px);
+  }
+
+  .loadingCard {
+    padding: 20px;
+  }
+
+  .sectionHeader,
+  .noteCardFooter {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .notesGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .noteCardContent {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
 }
 
 @media screen and (max-width: 600px) and (prefers-reduced-motion: no-preference) {
-  .homeMain, .notesSection { animation: mobileReveal 280ms ease-out; }
+
+  .homeMain,
+  .notesSection {
+    animation: mobileReveal 280ms ease-out;
+  }
 }
