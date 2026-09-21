@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import ImageUploader from '@/components/ImageUploader';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -9,6 +9,7 @@ import { Note } from '@/types';
 import { Calendar, Trash2, ArrowRight, BookOpen, Sparkles, CheckCircle2 } from 'lucide-react';
 import styles from '../page.module.css';
 import { readGenerationStream, type GenerationStep, type StepProgress } from '@/lib/generation-progress';
+import { aiActionMessage, type AiActions } from '@/lib/ai-actions';
 
 function getNoteExcerpt(note: Note) {
   const source = note.summary?.trim() || (Array.isArray(note.notes) ? note.notes.join(' ') : '');
@@ -28,8 +29,51 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState<Partial<Record<GenerationStep, StepProgress>>>({});
   const [generationError, setGenerationError] = useState<string | null>(null);
-  const [includeQuestions, setIncludeQuestions] = useState(false);
-  const [includeSummary, setIncludeSummary] = useState(false);
+  const [aiBoost, setAiBoost] = useState(false);
+  const [actions, setActions] = useState<AiActions | null>(null);
+  const [actionsError, setActionsError] = useState<string | null>(null);
+  const generationInFlight = useRef(false);
+  const actionFetchVersion = useRef(0);
+
+  const refreshActions = useCallback(async () => {
+    const version = ++actionFetchVersion.current;
+    try {
+      const response = await fetch('/api/ai-actions', { cache: 'no-store' });
+      if (!response.ok) throw new Error('Could not check your AI actions. Please try again.');
+      const balance: AiActions = await response.json();
+      if (version === actionFetchVersion.current) {
+        setActions(balance);
+        setActionsError(null);
+      }
+    } catch {
+      if (version === actionFetchVersion.current) {
+        setActions(null);
+        setActionsError('Could not check your AI actions. Please try again.');
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const onFocus = () => { void refreshActions(); };
+    const initial = window.setTimeout(onFocus, 0);
+    window.addEventListener('focus', onFocus);
+    const timer = window.setInterval(onFocus, 60_000);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      window.clearTimeout(initial);
+      window.clearInterval(timer);
+    };
+  }, [refreshActions]);
+
+  useEffect(() => {
+    if (!actions) return;
+    const timer = window.setTimeout(() => { void refreshActions(); }, Math.max(1000, Date.parse(actions.resetsAt) - Date.now() + 1000));
+    return () => window.clearTimeout(timer);
+  }, [actions, refreshActions]);
+
+  const actionCost = aiBoost ? 3 : 1;
+  const allowanceMessage = actions ? aiActionMessage(actions.remaining, actionCost) : null;
+
   const [notesError, setNotesError] = useState<string | null>(null);
 
   // Notes are loaded through the authenticated server route, never from the browser database client.
@@ -51,13 +95,19 @@ export default function Dashboard() {
   const generationSteps: { id: GenerationStep; label: string }[] = [
     { id: 'storage', label: 'Store source image' },
     { id: 'extraction', label: 'Extract handwritten text' },
-    ...(includeQuestions ? [{ id: 'questions' as const, label: 'Generate study questions' }] : []),
-    ...(includeSummary ? [{ id: 'summary' as const, label: 'Generate summary' }] : []),
+    ...(aiBoost ? [{ id: 'questions' as const, label: 'Generate study questions' }] : []),
+    ...(aiBoost ? [{ id: 'summary' as const, label: 'Generate summary' }] : []),
     { id: 'save', label: 'Save Cornell note' },
   ];
   const completedSteps = generationSteps.filter(({ id }) => progress[id]?.status === 'complete').length;
 
   const handleImageSelected = async (base64Data: string) => {
+    if (generationInFlight.current) return;
+    if (!actions || allowanceMessage) {
+      setGenerationError(allowanceMessage || 'Please wait while we check your AI actions.');
+      return;
+    }
+    generationInFlight.current = true;
     setIsLoading(true);
     setProgress({});
     setGenerationError(null);
@@ -71,10 +121,13 @@ export default function Dashboard() {
         },
         body: JSON.stringify({
           image: base64Data,
-          includeQuestions,
-          includeSummary,
+          includeQuestions: aiBoost,
+          includeSummary: aiBoost,
         }),
       });
+
+      // The server charges accepted attempts before generation starts.
+      void refreshActions();
 
       if (!response.ok) {
         const result = await response.json().catch(() => null);
@@ -94,6 +147,9 @@ export default function Dashboard() {
       console.error('Error generating notes:', err);
       setGenerationError(err instanceof Error ? err.message : 'Failed to generate note. Please try again.');
       setIsLoading(false);
+    } finally {
+      generationInFlight.current = false;
+      void refreshActions();
     }
   };
 
@@ -182,9 +238,9 @@ export default function Dashboard() {
                 </div>
               </CardContent>
             </Card>
-          ) : (
+          ) : actions && !allowanceMessage ? (
             <ImageUploader onImageSelected={handleImageSelected} isLoading={isLoading} variant="pill" />
-          )}
+          ) : null}
 
           {!isLoading && (
             <div
@@ -199,16 +255,17 @@ export default function Dashboard() {
             >
               <button
                 type="button"
-                aria-pressed={includeQuestions}
-                onClick={() => setIncludeQuestions((enabled) => !enabled)}
+                aria-pressed={aiBoost}
+                aria-describedby="ai-boost-description"
+                onClick={() => setAiBoost((enabled) => !enabled)}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '8px',
-                  border: `1px solid ${includeQuestions ? '#2563eb' : 'rgba(0, 0, 0, 0.14)'}`,
+                  border: `1px solid ${aiBoost ? '#2563eb' : 'rgba(0, 0, 0, 0.14)'}`,
                   borderRadius: '9999px',
                   padding: '9px 14px',
-                  backgroundColor: includeQuestions ? '#dbeafe' : '#ffffff',
+                  backgroundColor: aiBoost ? '#dbeafe' : '#ffffff',
                   color: '#111827',
                   cursor: 'pointer',
                   fontWeight: 600,
@@ -221,56 +278,35 @@ export default function Dashboard() {
                     width: '30px',
                     height: '18px',
                     borderRadius: '9999px',
-                    backgroundColor: includeQuestions ? '#2563eb' : '#9ca3af',
+                    backgroundColor: aiBoost ? '#2563eb' : '#9ca3af',
                     padding: '2px',
                     display: 'inline-flex',
-                    justifyContent: includeQuestions ? 'flex-end' : 'flex-start',
+                    justifyContent: aiBoost ? 'flex-end' : 'flex-start',
                     transition: 'all 0.2s ease',
                   }}
                 >
                   <span style={{ width: '14px', height: '14px', borderRadius: '50%', backgroundColor: '#ffffff' }} />
                 </span>
-                Generate questions
+                AI-Boost
               </button>
-              <button
-                type="button"
-                aria-pressed={includeSummary}
-                onClick={() => setIncludeSummary((enabled) => !enabled)}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  border: `1px solid ${includeSummary ? '#2563eb' : 'rgba(0, 0, 0, 0.14)'}`,
-                  borderRadius: '9999px',
-                  padding: '9px 14px',
-                  backgroundColor: includeSummary ? '#dbeafe' : '#ffffff',
-                  color: '#111827',
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                  fontSize: '0.875rem',
-                }}
-              >
-                <span
-                  aria-hidden="true"
-                  style={{
-                    width: '30px',
-                    height: '18px',
-                    borderRadius: '9999px',
-                    backgroundColor: includeSummary ? '#2563eb' : '#9ca3af',
-                    padding: '2px',
-                    display: 'inline-flex',
-                    justifyContent: includeSummary ? 'flex-end' : 'flex-start',
-                    transition: 'all 0.2s ease',
-                  }}
-                >
-                  <span style={{ width: '14px', height: '14px', borderRadius: '50%', backgroundColor: '#ffffff' }} />
-                </span>
-                Generate summary
-              </button>
+              <p id="ai-boost-description" style={{ width: '100%', textAlign: 'center', color: '#ffffff', fontSize: '0.875rem', margin: 0 }}>Add study questions and a summary to your notes.</p>
+
             </div>
           )}
         </div>
 
+        <div style={{ maxWidth: '350px', width: '100%', margin: '0 auto 48px auto' }}>
+          <div style={{ background: '#ffffff', color: '#111827', padding: '16px', borderRadius: '16px', marginBottom: '16px', textAlign: 'center' }}>
+            <p role="status" style={{ fontWeight: 700 }}>
+              {actions ? `${actions.remaining} Actions Left` : actionsError || 'Checking AI actions…'}
+            </p>
+            <p style={{ fontSize: '0.875rem', marginTop: '6px' }}>No-Boost: 1</p>
+            <p style={{ fontSize: '0.875rem', marginTop: '6px' }}>AI-Boosted: 3</p>
+            <p style={{ fontSize: '0.8rem', color: '#4b5563', marginTop: '6px' }}>Resets at midnight Pacific time</p>
+            {allowanceMessage && <p role="status" style={{ color: '#b45309', marginTop: '8px' }}>{allowanceMessage}</p>}
+            {actionsError && <button type="button" onClick={() => { void refreshActions(); }} style={{ marginTop: '8px', color: '#2563eb' }}>Retry</button>}
+          </div>
+        </div>
         <div>
           <p style={{
             textAlign: 'center',
@@ -390,3 +426,5 @@ export default function Dashboard() {
     </div>
   );
 }
+
+

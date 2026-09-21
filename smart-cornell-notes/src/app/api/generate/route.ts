@@ -4,6 +4,9 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { extractTextFromImage } from './extract';
 import { generateQuestions } from './questions';
 import { generateSummary } from './summary';
+import { generateBoth } from './both';
+import { aiActionCost, aiActionMessage } from '@/lib/ai-actions';
+import { getAiActions } from '@/lib/ai-actions-server';
 import type { GenerationEvent, GenerationStep, StepProgress } from '@/lib/generation-progress';
 
 const NOTE_PREFIX = /^(?:[-*•‣◦▪︎‒–—]|\d+[.)])\s+/u;
@@ -71,6 +74,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Note generation is not configured yet.' }, { status: 500 });
     }
 
+    if ((includeQuestions !== undefined && typeof includeQuestions !== 'boolean') ||
+        (includeSummary !== undefined && typeof includeSummary !== 'boolean')) {
+      return NextResponse.json({ error: 'Invalid generation options.' }, { status: 400 });
+    }
+    const cost = aiActionCost(includeQuestions, includeSummary);
+    let actions;
+    try {
+      actions = await getAiActions(userId, cost);
+    } catch {
+      return NextResponse.json({ error: 'Could not check your AI actions. Please try again.' }, { status: 503 });
+    }
+    if (!actions.allowed) {
+      return NextResponse.json({ error: aiActionMessage(actions.remaining, cost), actions }, {
+        status: 429,
+        headers: { 'Retry-After': String(Math.max(1, Math.ceil((Date.parse(actions.resetsAt) - Date.now()) / 1000))) },
+      });
+    }
+
     const generate = async (report: (progress: StepProgress) => void) => {
     let imagePath = '';
     const starts = new Map<GenerationStep, number>();
@@ -131,10 +152,14 @@ export async function POST(request: Request) {
 
     const notes = splitNotes(rawText);
 
-    // 4. Generate optional study aids in parallel. Text extraction always runs.
+    // Share one model request when both study aids are selected.
+    // Keep both progress steps tied to that same request, including failures.
+    const combined = includeSummary === true && includeQuestions === true
+      ? generateBoth(rawText)
+      : null;
     const [summary, cues] = await Promise.all([
-      includeSummary === true ? measured('summary', () => generateSummary(rawText), text => `${text.trim() ? text.trim().split(/\s+/).length : 0} summary words`) : Promise.resolve(''),
-      includeQuestions === true ? measured('questions', () => generateQuestions(rawText), questions => `${questions.length} questions generated`) : Promise.resolve<string[]>([]),
+      includeSummary === true ? measured('summary', () => combined ? combined.then(result => result.summary) : generateSummary(rawText), text => `${text.trim() ? text.trim().split(/\s+/).length : 0} summary words`) : Promise.resolve(''),
+      includeQuestions === true ? measured('questions', () => combined ? combined.then(result => result.questions) : generateQuestions(rawText), questions => `${questions.length} questions generated`) : Promise.resolve<string[]>([]),
     ]);
 
     const parsedNote = {
@@ -209,3 +234,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Note generation failed. Please try again.' }, { status: 500 });
   }
 }
+

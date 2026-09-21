@@ -1,15 +1,15 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { CornellLayout } from '@/components/CornellLayout';
 import { Note, CornellData } from '@/types';
 import { ChevronLeft, ArrowLeft, Loader2, FileWarning } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { ScratchPaper } from '@/components/ScratchPaper';
 
 export default function NoteViewerPage() {
-  const router = useRouter();
   const params = useParams();
   const id = params.id as string;
 
@@ -94,12 +94,13 @@ export default function NoteViewerPage() {
   return (
     <div className="container" style={{ padding: '24px 0 60px 0' }}>
       {/* Back button */}
-      <div className="no-print" style={{ marginBottom: '20px' }}>
+      <div className="no-print" style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
         <Link href="/dashboard" passHref>
           <Button variant="ghost" size="sm" style={{ paddingLeft: '8px' }}>
             <ChevronLeft size={16} /> Back to Dashboard
           </Button>
         </Link>
+        <ScratchPaper key={id} />
       </div>
 
       {/* Interactive Cornell Layout */}
