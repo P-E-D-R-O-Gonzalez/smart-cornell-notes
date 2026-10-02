@@ -29,7 +29,7 @@
     "eslint": "^9",
     "eslint-config-next": "^16.3.3",
     "typescript": "^5",
-    "wrangler": "^4.134.0"
+    "wrangler": "^4.146.0"
   },
   "allowScripts": {
     "esbuild@0.25.4": true,
